@@ -146,6 +146,7 @@ class AllLibCompFlags():
         self.libs_["dlib"] = self.__dlib()
         self.libs_["libsvm"] = self.__libsvm()
         self.libs_["boost"] = self.__boost()
+        self.libs_["mongoc"] = self.__mongoc()
         """
         self.libs_["mathgl"] = self.__mathgl()
         
@@ -160,7 +161,7 @@ class AllLibCompFlags():
         self.libs_["njhrinside"] = self.__njhRInside()
         
         
-        self.libs_["mongoc"] = self.__mongoc()
+        
         self.libs_["mongocxx"] = self.__mongocxx()
         
         """
@@ -281,6 +282,25 @@ class AllLibCompFlags():
         lib.versions_["1_58_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
         return lib
     
+    def __mongoc(self):
+        libname = "mongoc"
+        lib = LibCompFlags(libName, "1.3.3")
+        lib.addVersion("1.3.3")
+    
+    """
+    ifeq ($(USE_MONGOC),1)
+    COMLIBS += -isystem$(LOCAL_PATH)/mongoc/include/libbson-1.0 \
+    -isystem$(LOCAL_PATH)/mongoc/include/libmongoc-1.0
+    LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongoc/lib \
+            -L$(LOCAL_PATH)/mongoc/lib \
+            -lssl -lcrypto -lmongoc-1.0 -lbson-1.0
+    ifeq ($(UNAME_S),Darwin)
+
+    else
+           LD_FLAGS += -lrt
+    endif
+endif
+    """
     #1.2.0-dev
     #master
     #LibNameVer = namedtuple("LibNameVer", 'name version')
