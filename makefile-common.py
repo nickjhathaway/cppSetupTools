@@ -83,13 +83,26 @@ class LibVersionCompFlags():
         self.nameVer_ = LibNameVer(name, version)
         self.depends_ = depends #should be a list of LibNameVer
         self.includePath_ = os.path.join(joinNameVer(self.nameVer_), "include")
+        self.additionalIncludeFlags_ = []
+        self.additionalIncludePaths_ = []
         self.libPath_ = os.path.join(joinNameVer(self.nameVer_), "lib")
         self.additionalLdFlags_ = []
+        self.altLibName_ = ""
+        
         
     def getIncludeFlags(self, localPath):
         ret = ""
         if(len(self.includePath_) > 0):
             ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+        if len(self.additionalIncludePaths_ > 0):
+            for addPath in self.additionalIncludePaths_:
+                if len(ret > 0):
+                    ret = ret + " "
+                ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+        if len(self.additionalIncludeFlags_ > 0):
+            if len(ret > 0):
+                ret = ret + " "
+            ret = ret + " ".join(self.additionalIncludeFlags_) 
         return ret
     
     def getLdFlags(self, localPath):
@@ -99,7 +112,10 @@ class LibVersionCompFlags():
         if(len(self.libPath_) > 0):
             retList.append("-Wl,-rpath," + str(libPath))
             retList.append("-L" + str(libPath))
-            retList.append("-l" + self.nameVer_.name)
+            if len(self.altLibName_ > 0):
+                retList.append("-l" + self.altLibName_)
+            else:
+                retList.append("-l" + self.nameVer_.name)
         if(len(self.additionalLdFlags_) > 0):
             retList.extend(self.additionalLdFlags_)
         if(len(retList) > 0):
@@ -147,23 +163,19 @@ class AllLibCompFlags():
         self.libs_["libsvm"] = self.__libsvm()
         self.libs_["boost"] = self.__boost()
         self.libs_["mongoc"] = self.__mongoc()
+        self.libs_["mongocxx"] = self.__mongocxx()
+        self.libs_["bibcpp"] = self.__bibcpp()
+        self.libs_["bibseq"] = self.__bibseq()
+        self.libs_["bibseqdev"] = self.__bibseqDev()
+        self.libs_["njhrinside"] = self.__njhRInside()
+        self.libs_["seqserver"] = self.__seqServer()
+        self.libs_["seekdeepdev"] = self.__SeekDeepDev()
+        self.libs_["seekdeep"] = self.__SeekDeep()
+        self.libs_["sharedmutex"] = self.__sharedMutex()
         """
         self.libs_["mathgl"] = self.__mathgl()
-        
         self.libs_["mlpack"] = self.__mlpack()
         self.libs_["liblinear"] = self.__liblinear()
-        self.libs_["bibseq"] = self.__bibseq()
-        self.libs_["bibcpp"] = self.__bibcpp()
-        self.libs_["seekdeep"] = self.__SeekDeep()
-        self.libs_["bibseqdev"] = self.__bibseqDev()
-        self.libs_["seekdeepdev"] = self.__SeekDeepDev()
-        self.libs_["seqserver"] = self.__seqserver()
-        self.libs_["njhrinside"] = self.__njhRInside()
-        
-        
-        
-        self.libs_["mongocxx"] = self.__mongocxx()
-        
         """
     def __zi_lib(self):
         libName = "zi_lib"
@@ -286,21 +298,69 @@ class AllLibCompFlags():
         libname = "mongoc"
         lib = LibCompFlags(libName, "1.3.3")
         lib.addVersion("1.3.3")
+        lib.versions_["1.3.3"].additionalIncludePaths_.append(lib.versions_["1.3.3"].includePath_, "/libmongoc-1.0")
+        lib.versions_["1.3.3"].includePath_ = lib.versions_["1.3.3"].includePath_ + "/libbson-1.0"
+        lib.versions_["1.3.3"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        lib.versions_["1.3.3"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0", "-lrt"]            
+        return lib
     
-    """
-    ifeq ($(USE_MONGOC),1)
-    COMLIBS += -isystem$(LOCAL_PATH)/mongoc/include/libbson-1.0 \
-    -isystem$(LOCAL_PATH)/mongoc/include/libmongoc-1.0
-    LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongoc/lib \
-            -L$(LOCAL_PATH)/mongoc/lib \
-            -lssl -lcrypto -lmongoc-1.0 -lbson-1.0
-    ifeq ($(UNAME_S),Darwin)
+    def __mongocxx(self):
+        libname = "mongocxx"
+        lib = LibCompFlags(libName, "3.0.1") #technically not the actually release, just a commit fix for clang
+        lib.addVersion("3.0.1",[LibNameVer("mongoc", "1.3.3")])
+        lib.versions_["3.0.1"].additionalIncludePaths_.append(lib.versions_["1.3.3"].includePath_, "/mongocxx/v_noabi")
+        lib.versions_["3.0.1"].includePath_ = lib.versions_["3.0.1"].includePath_ + "/mongocxx/v_noabi"
+        lib.versions_["3.0.1"].additionalLdFlags_ = ["-lbsoncxx"] 
+        return lib
+        
+    def __bibcpp(self):
+        libname = "bibcpp"
+        lib = LibCompFlags(libName, "develop")
+        lib.addHeaderOnly("develop",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        lib.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"] 
+        lib.addHeaderOnly("2.2.1",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_58_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        lib.versions_["2.2.1"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"] 
+     
+    def __bibseq(self):
+        libname = "bibseq"
+        lib = LibCompFlags(libName, "develop")
+        lib.addVersion("develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        lib.addVersion("2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+    
+    def __bibseqDev(self):
+        libname = "bibseqDev"
+        lib = LibCompFlags(libName, "master")
+        lib.addVersion("master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
 
-    else
-           LD_FLAGS += -lrt
-    endif
-endif
-    """
+    def __njhRInside(self):
+        libname = "njhRInside"
+        lib = LibCompFlags(libName, "develop")
+        lib.addVersion("develop",[LibNameVer("R", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+        lib.addVersion("1.1.1",[LibNameVer("R", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+
+    def __seqServer(self):
+        libname = "seqServer"
+        lib = LibCompFlags(libName, "develop")
+        lib.addVersion("develop",[LibNameVer("bibseq", "develop"),LibNameVer("cppcms", "1.0.5")])
+        lib.addVersion("1.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("cppcms", "1.0.5")])
+        
+    def __SeekDeepDev(self):
+        libname = "SeekDeepDev"
+        lib = LibCompFlags(libName, "master")
+        lib.addVersion("master",[LibNameVer("bibseqDev", "master"),LibNameVer("seqServer", "develop")])
+        
+    def __SeekDeep(self):
+        libname = "SeekDeep"
+        lib = LibCompFlags(libName, "develop")
+        lib.addVersion("develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
+        lib.addVersion("2.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("njhRInside", "1.1.1"),LibNameVer("seqServer", "1.2.1")])
+    
+    def __sharedMutex(self):
+        libname = "sharedMutex"
+        lib = LibCompFlags(libName, "v0.1")
+        lib.addVersion("v0.1")
+        lib.addVersion("develop")
+    
     #1.2.0-dev
     #master
     #LibNameVer = namedtuple("LibNameVer", 'name version')
