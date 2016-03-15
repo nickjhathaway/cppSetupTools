@@ -5,6 +5,7 @@
 import subprocess, sys, os, argparse
 from collections import namedtuple
 import shutil
+from _curses import version
 sys.path.append("scripts/pyUtils")
 sys.path.append("scripts/setUpScripts")
 from utils import Utils
@@ -57,9 +58,9 @@ class CPPLibPackage():
 class Packages():
     '''class to hold and setup all the necessary paths for 
     downloading, building, and then installing packages/libraries'''
-    def __init__(self, externalLoc):
+    def __init__(self, externalLoc, args):
         self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars,build, local directories
-        
+        self.args = args
         self.packages_ = {} #dictionary to hold path infos
         self.packages_["zi_lib"] = self.__zi_lib()
         self.packages_["pstreams"] = self.__pstreams()
@@ -387,9 +388,9 @@ class Packages():
                   """
             else:
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install"""
-        elif "g++" in self.CXX:
-            if "-" in self.CXX:
-                gccVer = self.CXX[(self.CXX.find("-") + 1):]
+        elif "g++" in self.args.CXX:
+            if "-" in self.args.CXX:
+                gccVer = self.args.CXX[(self.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> project-config.jam 
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -433,7 +434,6 @@ class Setup:
         else:
             self.extDirLoc = os.path.abspath(self.parseForExtPath(args.compfile[0]))
         self.dirMaster_ = LibDirMaster(self.extDirLoc)
-        self.packages_ = Paths(self.extDirLoc) # path object to hold the paths for install
         self.args = args # command line arguments parsed by argument parser
         self.setUps = {} # all available set ups
         self.setUpsNeeded = {} # the setups that need to be done
@@ -441,9 +441,9 @@ class Setup:
         self.failedInstall = [] # the setups that failed
         self.CC = "" # the c compilier being used
         self.CXX = "" # the c++ compilier being used
-        self.bibProjects = ["bibcpp", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver", "twobit", "sharedmutex"]
         self.__initSetUpFuncs()
         self.__processArgs()
+        self.packages_ = Paths(self.extDirLoc, self.args) # path object to hold the paths for install
         
     def setup(self):
         if self.args.forceUpdate:
@@ -520,6 +520,8 @@ class Setup:
         else:
             self.CC = genHelper.determineCC(self.args)
             self.CXX = genHelper.determineCXX(self.args)
+            self.args.CC = self.CC
+            self.args.CXX = self.CXX
         if "clang" in self.CXX:
             self.args.clang = True
         else:
@@ -581,12 +583,12 @@ class Setup:
                 Utils.rm_rf(p.local_dir)
     
 
-    def __path(self, name):
-        return self.packages_.path(name)
+    def __package(self, name):
+        return self.packages_.package(name)
 
-    def __setup(self, name, builder_f):
-        if os.path.exists(self.__path(name).local_dir):
-            print name, CT.boldGreen("found at ") + CT.boldBlack(self.__path(name).local_dir)
+    def __setup(self, name, version):
+        if os.path.exists(self.__package(name).local_dir):
+            print name, CT.boldGreen("found at ") + CT.boldBlack(self.__package(name).local_dir)
         else:
             print name, CT.boldRed("NOT"), "found; building..."
             try:
@@ -704,7 +706,7 @@ make COMPFILE=compfile.mk -j {num_cores}
             print "failed to clone branch {branch} from {url}".format(branch = branchName, url=bPath.url)
             sys.exit(1)
     
-    def __gitTag(self, i, tagName):
+    def __gitTag(self, bPath, tagName):
         cmd = "git clone {url} {d}".format(url=bPath.url, d=shellquote(bPath.local_dir))
         tagCmd = "git checkout {tag}".format(tag=tagName)
         try:
