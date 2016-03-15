@@ -31,11 +31,14 @@ def shellquote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 class CPPLibPackage():
-    def __init__(self, name, defaultBuildCmd, dirMaster):
+    def __init__(self, name, defaultBuildCmd, dirMaster, libType):
         self.name_ = name
         self.defaultBuildCmd_ = defaultBuildCmd
         self.version_ = {}
         self.externalLibDir_ = dirMaster
+        if "git" != libType or "file" != libType:
+            raise Exception("libType should be 'git' or 'file', not " + str(libType))
+        self.libType_ = libType #should be git or file
     
     def addVersion(self, url, verName):
         build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, self.verName)
@@ -98,7 +101,7 @@ class Packages():
         name = "zi_lib"
         url = 'https://github.com/weng-lab/zi_lib.git'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addHeaderOnlyVersion(url, "master")
         return pack
     
@@ -106,7 +109,7 @@ class Packages():
         name = "pstreams"
         url = 'https://github.com/nickjhathaway/pstreams'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "RELEASE_0_8_1")
         return pack
@@ -115,7 +118,7 @@ class Packages():
         url = 'https://github.com/pezmaster31/bamtools.git'
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "2.4.0")
         pack.addVersion(url, "2.3.0")
         return pack
@@ -124,7 +127,7 @@ class Packages():
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "1.6.5")
         pack.addVersion(url, "master")
         return pack
@@ -136,7 +139,7 @@ class Packages():
             buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         else:
             buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "1.3.3")
         return pack
     
@@ -147,7 +150,7 @@ class Packages():
             buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         else:
             buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "3.0.1")
         return self.__package_dirs(url, name)
 
@@ -155,7 +158,7 @@ class Packages():
         url = 'https://github.com/ryanhaining/cppitertools.git'
         name = "cppitertools"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "v0.1")
         return pack
@@ -164,7 +167,7 @@ class Packages():
         url = 'https://github.com/philsquared/Catch.git'
         name = "catch"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addHeaderOnlyVersion(url, "v1.3.3")
         return pack
 
@@ -181,7 +184,7 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(RHOMELOC = rHomeLoc)
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0")
@@ -191,7 +194,7 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz", "6.200.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-5.600.2.tar.gz", "5.600.2")
@@ -253,21 +256,21 @@ class Packages():
         if(sys.platform == "darwin"):
             buildCmd += " && install_name_tool -change libbooster.0.dylib {local_dir}/lib/libbooster.0.dylib {local_dir}/lib/libcppcms.1.dylib"
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cppcms/cppcms-1.0.5.tar.bz2", "1.0.5")
         return pack
 
     def __dlib(self):
         name = "dlib"
         buildCmd = "mkdir {local_dir} && cp -a * {local_dir}/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://freefr.dl.sourceforge.net/project/dclib/dlib/v18.7/dlib-18.7.tar.bz2", "18.7")
         return pack
     
     def __libsvm(self):
         name = "libsvm"
         buildCmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://www.csie.ntu.edu.tw/~cjlin/libsvm/oldfiles/libsvm-3.18.tar.gz", "3.18")
         return pack
     
@@ -275,7 +278,7 @@ class Packages():
         url = 'https://github.com/bailey-lab/cppprogutils.git'
         name = "cppprogutils"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addHeaderOnlyVersion(url, "develop")
         pack.addHeaderOnlyVersion(url, "1.0")
         return pack
@@ -284,7 +287,7 @@ class Packages():
         url = "https://github.com/bailey-lab/bibseq.git"
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "2.2.1")
         return pack
@@ -293,7 +296,7 @@ class Packages():
         url = "https://github.com/bailey-lab/bibseqPrivate.git"
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "master")
         return pack
     
@@ -301,7 +304,7 @@ class Packages():
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.0")
         return pack
@@ -310,7 +313,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v0.1")
         return pack 
@@ -319,7 +322,7 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "2.2.1")
         return pack
@@ -328,7 +331,7 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeepPrivate.git"
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "master")
         return pack
     
@@ -336,7 +339,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/seqServer.git"
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.2.1")
         return pack
@@ -345,7 +348,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/njhRInside.git"
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.1.1")
         return pack
@@ -354,7 +357,7 @@ class Packages():
         url = "https://github.com/umass-bib/bibcpp.git"
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.2.1")
         return pack
@@ -407,7 +410,7 @@ class Packages():
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """
         cmd = " ".join(cmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
@@ -429,6 +432,7 @@ class Setup:
             self.extDirLoc = os.path.abspath(os.path.join(os.path.dirname(__file__), "external"))
         else:
             self.extDirLoc = os.path.abspath(self.parseForExtPath(args.compfile[0]))
+        self.dirMaster_ = LibDirMaster(self.extDirLoc)
         self.packages_ = Paths(self.extDirLoc) # path object to hold the paths for install
         self.args = args # command line arguments parsed by argument parser
         self.setUps = {} # all available set ups
@@ -627,165 +631,87 @@ make COMPFILE=compfile.mk -j {num_cores}
                 retCores -= 1
         return retCores
 
-    def __build(self, i, cmd):
+    def __buildFromFile(self, bPath, cmd):
         print "\t Getting file..."
-        fnp = Utils.get_file_if_size_diff(i.url, self.packages_.ext_tars)
-        Utils.clear_dir(i.build_dir)
-        Utils.untar(fnp, i.build_dir)
+        fnp = Utils.get_file_if_size_diff(ibPath.url, self.packages_.ext_tars)
+        Utils.clear_dir(bPath.build_dir)
+        Utils.untar(fnp, bPath.build_dir)
         try:
-            Utils.run_in_dir(cmd, i.build_sub_dir)
+            Utils.run_in_dir(cmd, bPath.build_sub_dir)
         except:
-            print "\t Failed to build"
-            Utils.rm_rf(i.local_dir)
+            print "\t Failed to build, removing {d}".format(d = bPath.local_dir)
+            Utils.rm_rf(bPath.local_dir)
             sys.exit(1)
-
-
-    def __buildBibProject(self,libPaths):
-        cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
-                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
-                                                           external=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGit(libPaths, cmd)
-        
-    def __buildBibProjectTag(self,libPaths,tagName):
-        cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
-                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
-                                                           external=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGitTag(libPaths, cmd,tagName)
-        
-    
-    def __buildBibProjectBranch(self,libPaths,branchName):
-        cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
-                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
-                                                           external=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGitTag(libPaths, cmd,branchName)
-        
-    def updateBibProject(self,lib):
-        cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make clean 
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
-                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
-                                                           external=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        if ":" in lib:
-            libsplit = lib.split(":")
-            libPaths = self.__path(libsplit[0].lower())
-            self.__buildFromGitBranch(libPaths, cmd, libsplit[1])
-        else:
-            libPaths = self.__path(lib.lower())
-            self.__buildFromGit(libPaths, cmd)
-
-    
-    def updateBibProjects(self, libs):
-        for l in libs:
-            libLower = l.lower()
-            if ":" in libLower:
-                libLowerSplit = libLower.split(":")
-                if libLowerSplit[0] in self.bibProjects:
-                    self.updateBibProject(libLower)
-            else:
-                if libLower in self.bibProjects:
-                    self.updateBibProject(libLower)
-    
-    def __buildFromGit(self, i, cmd):
-        if os.path.exists(i.build_dir):
-            print "{GITDIR} already exists, pulling from {url}".format(GITDIR = os.path.exists(i.build_dir), url=i.url)
-            pCmd = "git checkout master && git pull"
-            try:
-                Utils.run_in_dir(pCmd, i.build_dir)
-            except:
-                print "failed to pull from {url} with {cmd}".format(url=i.url, cmd = pCmd)
-                sys.exit(1)
-        else:
-            print "cloning from {url}".format(url=i.url)
-            cCmd = "git clone {url} {d}".format(url=i.url, d=i.build_dir)
-            try:
-                print self.packages_.ext_build
-                Utils.run_in_dir(cCmd, self.packages_.ext_build)
-            except:
-                print "failed to clone from {url}".format(url=i.url)
-                sys.exit(1)
-        try:
-            Utils.run_in_dir(cmd, i.build_dir)
-        except:
-            Utils.rm_rf(i.local_dir)
-            sys.exit(1)
-            
-    def __buildFromGitBranch(self, i, cmd, branchName):
-        if os.path.exists(i.build_dir):
-            print "pulling from {url}".format(url=i.url)
+                
+    def __buildFromGitBranch(self, bPath, cmd, branchName):
+        if os.path.exists(bPath.build_dir):
+            print "pulling from {url}".format(url=bPath.url)
             pCmd = "git checkout " + branchName + " && git pull"
             try:
-                Utils.run_in_dir(pCmd, i.build_dir)
+                Utils.run_in_dir(pCmd, bPath.build_dir)
             except:
-                print "failed to pull from {url} with {cmd}".format(url=i.url, cmd = pCmd)
+                print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
                 sys.exit(1)
         else:
-            print "cloning from {url}".format(url=i.url)
-            cCmd = "git clone -b "+ branchName + " {url} {d}".format(url=i.url, d=i.build_dir)
+            print "cloning from {url}".format(url=bPath.url)
+            cCmd = "git clone -b "+ branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_dir)
             try:
                 print self.packages_.ext_build
                 Utils.run_in_dir(cCmd, self.packages_.ext_build)
             except:
-                print "failed to clone from {url}".format(url=i.url)
+                print "failed to clone from {url}".format(url=bPath.url)
                 sys.exit(1)
         try:
-            Utils.run_in_dir(cmd, i.build_dir)
+            Utils.run_in_dir(cmd, bPath.build_dir)
         except:
-            Utils.rm_rf(i.local_dir)
+            print("Failed to build, removing {d}".format(d = bPath.local_dir))
+            Utils.rm_rf(bPath.local_dir)
             sys.exit(1)
     
-    def __buildFromGitTag(self, i, cmd, tagName):
-        if os.path.exists(i.build_dir):
-            print "pulling from {url}".format(url=i.url)
-            pCmd = "git checkout master && git pull && git checkout " + tagName
+    def __buildFromGitTag(self, bPath, cmd, tagName):
+        if os.path.exists(bPath.build_dir):
+            print "pulling from {url}".format(url=bPath.url)
+            pCmd = "git checkout origin/master && git pull && git checkout " + tagName
             try:
-                Utils.run_in_dir(pCmd, i.build_dir)
+                Utils.run_in_dir(pCmd, bPath.build_dir)
             except:
-                print "failed to pull from {url}".format(url=i.url)
+                print "failed to pull from {url}".format(url=bPath.url)
                 sys.exit(1)
         else:
-            print "cloning from {url}".format(url=i.url)
-            cCmd = "git clone {url} {d}".format(url=i.url, d=i.build_dir)
+            print "cloning from {url}".format(url=bPath.url)
+            cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_dir)
             tagCmd = "git checkout {tag}".format(tag=tagName)
             try:
                 print self.packages_.ext_build
                 Utils.run_in_dir(cCmd, self.packages_.ext_build)
-                Utils.run_in_dir(tagCmd, i.build_dir)
+                Utils.run_in_dir(tagCmd, bPath.build_dir)
             except:
-                print "failed to clone from {url}".format(url=i.url)
+                print "failed to clone from {url}".format(url=bPath.url)
                 sys.exit(1)
         try:
-            Utils.run_in_dir(cmd, i.build_dir)
+            Utils.run_in_dir(cmd, bPath.build_dir)
         except:
-            Utils.rm_rf(i.local_dir)
+            Utils.rm_rf(bPath.local_dir)
             sys.exit(1)
     
-    def __git(self, i):
-        cmd = "git clone {url} {d}".format(url=i.url, d=shellquote(i.local_dir))
-        Utils.run(cmd)
+    def __gitBranch(self, bPath, branchName):
+        print "cloning from {url}".format(url=bPath.url)
+        cCmd = "git clone -b {branch} {url} {d}".format(branch = branchName,url=bPath.url, d=bPath.build_dir)
+        try:
+            print self.packages_.ext_build
+            Utils.run_in_dir(cCmd, self.packages_.ext_build)
+        except:
+            print "failed to clone branch {branch} from {url}".format(branch = branchName, url=bPath.url)
+            sys.exit(1)
     
     def __gitTag(self, i, tagName):
-        cmd = "git clone {url} {d}".format(url=i.url, d=shellquote(i.local_dir))
+        cmd = "git clone {url} {d}".format(url=bPath.url, d=shellquote(bPath.local_dir))
         tagCmd = "git checkout {tag}".format(tag=tagName)
         try:
             Utils.run(cmd)
-            Utils.run_in_dir(tagCmd, i.local_dir)
+            Utils.run_in_dir(tagCmd, bPath.local_dir)
         except:
-            print "failed to clone from {url}".format(url=i.url)
+            print "failed to clone from {url}".format(url=bPath.url)
             sys.exit(1)
         
     
