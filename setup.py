@@ -654,7 +654,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 sys.exit(1)
         else:
             print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone -b "+ branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_dir)
+            cCmd = "git clone -b " + branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_dir)
             try:
                 print self.packages_.ext_build
                 Utils.run_in_dir(cCmd, self.packages_.ext_build)
