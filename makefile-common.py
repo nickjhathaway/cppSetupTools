@@ -199,8 +199,6 @@ class AllLibCompFlags():
     def __cppprogutils(self):
         libName = "cppprogutils"
         lib = LibCompFlags(libName, "master")
-        lib.addHeaderOnly("master",[LibNameVer("cppitertools", "v0.1")])
-        lib.versions_["master"].additionalLdFlags_ = ["-lpthread"]
         lib.addHeaderOnly("develop",[LibNameVer("cppitertools", "v0.1")])
         lib.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
         lib.addHeaderOnly("1.0",[LibNameVer("cppitertools", "v0.1")])
@@ -227,7 +225,6 @@ class AllLibCompFlags():
         libName = "TwoBit"
         lib = LibCompFlags(libName, "1.0")
         lib.addVersion("1.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "1.0")])
-        lib.addVersion("master",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "1.0")])
         lib.addVersion("develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
         return lib
     
@@ -245,7 +242,7 @@ class AllLibCompFlags():
         lib.addVersion("6.100.0")
         lib.addVersion("5.600.2")
         return lib
-    
+
     def __bamtools(self):
         libName = "bamtools"
         lib = LibCompFlags(libName, "2.4.0")
@@ -262,13 +259,6 @@ class AllLibCompFlags():
         lib = LibCompFlags(libName, "v1.3.3")
         lib.addVersion("v1.3.3")
         lib.versions_["v1.3.3"].includePath_ = os.path.join(joinNameVer(lib.versions_["v1.3.3"].nameVer_), "single_include")
-        return lib
-
-    def __curl(self):
-        libName = "curl"
-        lib = LibCompFlags(libName, "default")
-        lib.addHeaderOnly("default")
-        lib.versions_["default"].includePath_ = ""
         return lib
         
     def __dlib(self):
@@ -325,8 +315,10 @@ class AllLibCompFlags():
     def __bibseq(self):
         libName = "bibseq"
         lib = LibCompFlags(libName, "develop")
-        lib.addVersion("develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        lib.addVersion("2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        lib.addVersion("develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        lib.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
+        lib.addVersion("2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        lib.versions_["2.2.1"].additionalLdFlags_ = ["-lcurl"] 
         return lib
     
     def __bibseqDev(self):
