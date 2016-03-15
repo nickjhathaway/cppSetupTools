@@ -3,8 +3,8 @@
 import subprocess, sys, os, argparse
 from collections import namedtuple
 import shutil
-sys.path.append("scripts/pyUtils")
-sys.path.append("scripts/setUpScripts")
+sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
@@ -156,7 +156,6 @@ class AllLibCompFlags():
         self.libs_["armadillo"] = self.__armadillo()
         self.libs_["bamtools"] = self.__bamtools()
         self.libs_["catch"] = self.__catch()
-        self.libs_["curl"] = self.__curl()
         self.libs_["dlib"] = self.__dlib()
         self.libs_["libsvm"] = self.__libsvm()
         self.libs_["boost"] = self.__boost()
@@ -245,13 +244,13 @@ class AllLibCompFlags():
 
     def __bamtools(self):
         libName = "bamtools"
-        lib = LibCompFlags(libName, "2.4.0")
-        lib.addVersion("2.4.0")
-        lib.versions_["2.4.0"].libPath_ = os.path.join(lib.versions_["2.4.0"].libPath_,libName)
-        lib.versions_["2.4.0"].includePath_ = os.path.join(lib.versions_["2.4.0"].includePath_,libName)
-        lib.addVersion("2.3.0")
-        lib.versions_["2.3.0"].libPath_ = os.path.join(lib.versions_["2.3.0"].libPath_,libName)
-        lib.versions_["2.3.0"].includePath_ = os.path.join(lib.versions_["2.3.0"].includePath_,libName)
+        lib = LibCompFlags(libName, "v2.4.0")
+        lib.addVersion("v2.4.0")
+        lib.versions_["v2.4.0"].libPath_ = os.path.join(lib.versions_["v2.4.0"].libPath_,libName)
+        lib.versions_["v2.4.0"].includePath_ = os.path.join(lib.versions_["v2.4.0"].includePath_,libName)
+        lib.addVersion("v2.3.0")
+        lib.versions_["v2.3.0"].libPath_ = os.path.join(lib.versions_["v2.3.0"].libPath_,libName)
+        lib.versions_["v2.3.0"].includePath_ = os.path.join(lib.versions_["v2.3.0"].includePath_,libName)
         return lib
     
     def __catch(self):
@@ -414,8 +413,7 @@ def main():
             print(lib)
             vers = flagGenerator.libs_[lib].getVersions()
             sys.stdout.write("\t")
-            for ver in vers:
-                sys.stdout.write(str(ver) + ",")
+            sys.stdout.write(",".join(vers))
             sys.stdout.write("\n")
     
 

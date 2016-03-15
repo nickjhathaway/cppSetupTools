@@ -6,8 +6,9 @@ import subprocess, sys, os, argparse
 from collections import namedtuple
 import shutil
 from _curses import version
-sys.path.append("scripts/pyUtils")
-sys.path.append("scripts/setUpScripts")
+import cmd
+sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
@@ -17,7 +18,7 @@ BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
 
 class LibDirMaster():
     def __init__(self,externalLoc):
-        self.base_dir = externalLoc; #top dir to hold tars,build, local directories
+        self.base_dir = os.path.abspath(externalLoc); #top dir to hold tars,build, local directories
         
         self.ext_tars = os.path.join(self.base_dir, "tarballs") #location to keep tarballs of programs/libraries downloads
         self.ext_build = os.path.join(self.base_dir, "build") #location for the building of programs/libraries
@@ -35,23 +36,31 @@ class CPPLibPackage():
     def __init__(self, name, defaultBuildCmd, dirMaster, libType):
         self.name_ = name
         self.defaultBuildCmd_ = defaultBuildCmd
-        self.version_ = {}
+        self.versions_ = {}
         self.externalLibDir_ = dirMaster
-        if "git" != libType or "file" != libType:
-            raise Exception("libType should be 'git' or 'file', not " + str(libType))
+        if "git" != libType and "file" != libType and "git-headeronly" != libType:
+            raise Exception("libType should be 'git', 'git-headeronly', or 'file', not " + str(libType))
         self.libType_ = libType #should be git or file
     
     def addVersion(self, url, verName):
-        build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, self.verName)
-        build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, self.verName, self.name_)
+        build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
+        fn = os.path.basename(url)
+        fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
+        build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName, fn_noex)
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
-        self.version_[verName] = BuildPaths(url, build_dir, build_sub_dir, local_dir)
+        self.versions_[verName] = BuildPaths(url, build_dir, build_sub_dir, local_dir)
     
     def addHeaderOnlyVersion(self, url, verName):
         '''set up for header only libraries, these just need
          the header copied no need for build_dir build_sub_dir '''
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
-        self.version_[verName] = BuildPaths(url, "", "", local_dir)
+        self.versions_[verName] = BuildPaths(url, "", "", local_dir)
+        
+    def hasVersion(self, version):
+        return version in self.versions_
+    
+    def getVersions(self):
+        return self.versions_.keys()
         
 
 
@@ -102,7 +111,7 @@ class Packages():
         name = "zi_lib"
         url = 'https://github.com/weng-lab/zi_lib.git'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
         pack.addHeaderOnlyVersion(url, "master")
         return pack
     
@@ -110,7 +119,7 @@ class Packages():
         name = "pstreams"
         url = 'https://github.com/nickjhathaway/pstreams'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "RELEASE_0_8_1")
         return pack
@@ -120,8 +129,8 @@ class Packages():
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
-        pack.addVersion(url, "2.4.0")
-        pack.addVersion(url, "2.3.0")
+        pack.addVersion(url, "v2.4.0")
+        pack.addVersion(url, "v2.3.0")
         return pack
     
     def __jsoncpp(self):
@@ -137,9 +146,9 @@ class Packages():
         url = "https://github.com/mongodb/mongo-c-driver"
         name = "mongoc"
         if Utils.isMac():
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --prefix={local_dir}&& make -j {num_cores}  && make install"
         else:
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir} && make -j {num_cores}  && make install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "1.3.3")
         return pack
@@ -148,18 +157,18 @@ class Packages():
         url = "https://github.com/mongodb/mongo-cxx-driver"
         name = "mongocxx"
         if Utils.isMac():
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         else:
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
         pack.addVersion(url, "3.0.1")
-        return self.__package_dirs(url, name)
+        return pack
 
     def __cppitertools(self):
         url = 'https://github.com/ryanhaining/cppitertools.git'
         name = "cppitertools"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "v0.1")
         return pack
@@ -168,7 +177,7 @@ class Packages():
         url = 'https://github.com/philsquared/Catch.git'
         name = "catch"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
         pack.addHeaderOnlyVersion(url, "v1.3.3")
         return pack
 
@@ -182,8 +191,8 @@ class Packages():
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
-                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(RHOMELOC = rHomeLoc)
+                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
+                """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2")
@@ -279,7 +288,7 @@ class Packages():
         url = 'https://github.com/bailey-lab/cppprogutils.git'
         name = "cppprogutils"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
         pack.addHeaderOnlyVersion(url, "develop")
         pack.addHeaderOnlyVersion(url, "1.0")
         return pack
@@ -371,7 +380,7 @@ class Packages():
             #print "here"
             setUpDir = os.path.dirname(os.path.abspath(__file__))
             gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
-            gccJamOutLoc = "{build_dir}/tools/build/src/tools/gcc.jam"
+            gccJamOutLoc = "{build_sub_dir}/tools/build/src/tools/gcc.jam"
             #print gccJamLoc
             #print gccJamOutLoc
             installNameToolCmd  = """ 
@@ -410,7 +419,7 @@ class Packages():
                     buildCmd = """echo "using gcc : : g++;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """
-        cmd = " ".join(cmd.split())
+        buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
@@ -430,7 +439,8 @@ class Setup:
         self.extDirLoc = "" # the location where the libraries will be installed
         #if no compile file set up and assume external is next to setup.py
         if not args.compfile:
-            self.extDirLoc = os.path.abspath(os.path.join(os.path.dirname(__file__), "external"))
+            self.extDirLoc = "external"
+            #self.extDirLoc = os.path.abspath(os.path.join(os.path.dirname(__file__), "external"))
         else:
             self.extDirLoc = os.path.abspath(self.parseForExtPath(args.compfile[0]))
         self.dirMaster_ = LibDirMaster(self.extDirLoc)
@@ -443,7 +453,7 @@ class Setup:
         self.CXX = "" # the c++ compilier being used
         self.__initSetUpFuncs()
         self.__processArgs()
-        self.packages_ = Paths(self.extDirLoc, self.args) # path object to hold the paths for install
+        self.packages_ = Packages(self.extDirLoc, self.args) # path object to hold the paths for install
         
     def setup(self):
         if self.args.forceUpdate:
@@ -457,7 +467,7 @@ class Setup:
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
             else:
-                self.__setup(set, self.setUps[set])
+                self.__setup(set, self.setUpsNeeded[set])
 
         for p in self.installed:
             print p, CT.boldGreen("installed")
@@ -474,10 +484,7 @@ class Setup:
                        "r": self.r,
                        "bamtools": self.bamtools,
                        "cppcms": self.cppcms,
-                       "mathgl": self.mathgl,
                        "armadillo": self.armadillo,
-                       "mlpack": self.mlpack,
-                       "liblinear": self.liblinear,
                        "bibseq": self.bibseq,
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
@@ -494,6 +501,11 @@ class Setup:
                        "twobit" : self.twobit,
                        "sharedmutex" : self.sharedMutex
                        }
+        '''
+        "mathgl": self.mathgl,
+        "mlpack": self.mlpack,
+        "liblinear": self.liblinear,
+        '''
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
         print "Available installs:"
@@ -503,6 +515,10 @@ class Setup:
         installs.sort()
         for set in installs:
             print set
+            pack = self.__package(set)
+            sys.stdout.write("\t")
+            sys.stdout.write(",".join(pack.getVersions()))
+            sys.stdout.write("\n")
 
     def __processArgs(self):
         if self.args.libs:
@@ -587,39 +603,22 @@ class Setup:
         return self.packages_.package(name)
 
     def __setup(self, name, version):
-        if os.path.exists(self.__package(name).local_dir):
-            print name, CT.boldGreen("found at ") + CT.boldBlack(self.__package(name).local_dir)
+        pack = self.__package(name)
+        if not pack.hasVersion(version):
+            raise Exception("Package " + str(name) + " doesn't have version " + str(version))
+        bPath = pack.versions_[version]
+        if os.path.exists(bPath.local_dir):
+            print name, CT.boldGreen("found at ") + CT.boldBlack(bPath.local_dir)
         else:
             print name, CT.boldRed("NOT"), "found; building..."
             try:
-                builder_f()
+                self.setUps[name](version)
                 self.installed.append(name)
             except Exception as inst:
                 print type(inst)
                 print inst 
                 print "failed to install " + name
                 self.failedInstall.append(name)
-
-    def showDefaultExample(self):
-        print """
-Need to supply compfile to parse for needed libraries and compilers"
-by giving -compfile"
-
-example:
-
-python ./setUpScripts/generateCompFile.py -outFilename compfile.mk \
--externalLoc external \
--CC gcc -CXX g++ \
--outname seqTools \
--installName bibseq \
--neededLibs zi_lib,cppitertools,cppprogutils,boost,R,bamtools,pear,curl
-
-python ./setup.py --compfile compfile.mk
-
-make COMPFILE=compfile.mk -j {num_cores}
-"""
-
-
 
     def num_cores(self):
         retCores = Utils.num_cores()
@@ -635,7 +634,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def __buildFromFile(self, bPath, cmd):
         print "\t Getting file..."
-        fnp = Utils.get_file_if_size_diff(ibPath.url, self.packages_.ext_tars)
+        fnp = Utils.get_file_if_size_diff(bPath.url, self.dirMaster_.ext_tars)
         Utils.clear_dir(bPath.build_dir)
         Utils.untar(fnp, bPath.build_dir)
         try:
@@ -646,11 +645,11 @@ make COMPFILE=compfile.mk -j {num_cores}
             sys.exit(1)
                 
     def __buildFromGitBranch(self, bPath, cmd, branchName):
-        if os.path.exists(bPath.build_dir):
+        if os.path.exists(bPath.build_sub_dir):
             print "pulling from {url}".format(url=bPath.url)
             pCmd = "git checkout " + branchName + " && git pull"
             try:
-                Utils.run_in_dir(pCmd, bPath.build_dir)
+                Utils.run_in_dir(pCmd, bPath.build_sub_dir)
             except:
                 print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
                 sys.exit(1)
@@ -658,8 +657,7 @@ make COMPFILE=compfile.mk -j {num_cores}
             print "cloning from {url}".format(url=bPath.url)
             cCmd = "git clone -b " + branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_dir)
             try:
-                print self.packages_.ext_build
-                Utils.run_in_dir(cCmd, self.packages_.ext_build)
+                Utils.run(cCmd)
             except:
                 print "failed to clone from {url}".format(url=bPath.url)
                 sys.exit(1)
@@ -671,28 +669,31 @@ make COMPFILE=compfile.mk -j {num_cores}
             sys.exit(1)
     
     def __buildFromGitTag(self, bPath, cmd, tagName):
-        if os.path.exists(bPath.build_dir):
+        if os.path.exists(bPath.build_sub_dir):
             print "pulling from {url}".format(url=bPath.url)
             pCmd = "git checkout origin/master && git pull && git checkout " + tagName
             try:
-                Utils.run_in_dir(pCmd, bPath.build_dir)
-            except:
+                Utils.run_in_dir(pCmd, bPath.build_sub_dir)
+            except Exception, e:
+                print e
                 print "failed to pull from {url}".format(url=bPath.url)
                 sys.exit(1)
         else:
             print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_dir)
+            cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
             tagCmd = "git checkout {tag}".format(tag=tagName)
             try:
-                print self.packages_.ext_build
-                Utils.run_in_dir(cCmd, self.packages_.ext_build)
-                Utils.run_in_dir(tagCmd, bPath.build_dir)
-            except:
+                Utils.run(cCmd)
+                Utils.run_in_dir(tagCmd, bPath.build_sub_dir)
+            except Exception, e:
+                print e
                 print "failed to clone from {url}".format(url=bPath.url)
                 sys.exit(1)
         try:
-            Utils.run_in_dir(cmd, bPath.build_dir)
-        except:
+            Utils.run_in_dir(cmd, bPath.build_sub_dir)
+        except Exception, e:
+            print e
+            print "failed to build in {BUILD}, remove {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
             Utils.rm_rf(bPath.local_dir)
             sys.exit(1)
     
@@ -700,298 +701,156 @@ make COMPFILE=compfile.mk -j {num_cores}
         print "cloning from {url}".format(url=bPath.url)
         cCmd = "git clone -b {branch} {url} {d}".format(branch = branchName,url=bPath.url, d=bPath.build_dir)
         try:
-            print self.packages_.ext_build
-            Utils.run_in_dir(cCmd, self.packages_.ext_build)
-        except:
+            Utils.run_in_dir(cCmd)
+        except Exception, e:
+            print e
             print "failed to clone branch {branch} from {url}".format(branch = branchName, url=bPath.url)
             sys.exit(1)
     
     def __gitTag(self, bPath, tagName):
         cmd = "git clone {url} {d}".format(url=bPath.url, d=shellquote(bPath.local_dir))
         tagCmd = "git checkout {tag}".format(tag=tagName)
+
         try:
             Utils.run(cmd)
             Utils.run_in_dir(tagCmd, bPath.local_dir)
         except:
             print "failed to clone from {url}".format(url=bPath.url)
             sys.exit(1)
+    
+    def __defaultBuild(self, package, version):
+        pack = self.__package(package)
+        if not pack.hasVersion(version):
+            raise Exception("No set up for version " + str(version) + " for " + str(package))
+        bPaths = pack.versions_[version]
+        cmd = pack.defaultBuildCmd_.format(local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        Utils.mkdir(os.path.dirname(bPaths.local_dir))
+        if "" != cmd:
+            print cmd
+        if "git" == pack.libType_:
+            Utils.mkdir(bPaths.build_dir)
+            self.__buildFromGitTag(bPaths, cmd, version)
+        elif "git-headeronly" == pack.libType_:
+            self.__gitTag(bPaths, version)
+        elif "file" == pack.libType_:
+            Utils.mkdir(bPaths.build_dir)
+            self.__buildFromFile(bPaths, cmd)
+        else:
+            raise Exception("Unrecognized lib type " + str(pack.libType_))
         
     
-    def installRPackageSource(self, sourceFile):
-        i = self.__path("r")
+    def installRPackageSource(self,version, sourceFile):
+        rPack = self.__package("r")
+        if not rPack.hasVersion(version):
+            raise Exception("No set up for version " + str(version) + " for " + str("R"))
+        bPath = rPack.versions_[version]
         for pack in sourceFile.split(","):
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
+                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
 
-    def installRPackageName(self, packageName):
-        i = self.__path("r")
+    def installRPackageName(self,version, packageName):
+        rPack = self.__package("r")
+        if not rPack.hasVersion(version):
+            raise Exception("No set up for version " + str(version) + " for " + str("R"))
+        bPath = rPack.versions_[version]
         for pack in packageName.split(","):
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
+                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
 
-    def boost(self):
-        #print "start"
-        i = self.__path("boost")
-        #boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
-        boostLibs = "filesystem,iostreams,system"
-        if Utils.isMac():
-            #print "here"
-            setUpDir = os.path.dirname(os.path.abspath(__file__))
-            gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
-            gccJamOutLoc = os.path.abspath("{build_dir}/tools/build/src/tools/gcc.jam".format(build_dir = i.build_sub_dir))
-            #print gccJamLoc
-            #print gccJamOutLoc
-            installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S.*libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
-            && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
-            && install_name_tool -id {local_dir}/lib/libboost_iostreams.dylib {local_dir}/lib/libboost_iostreams.dylib
-            && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
-            """.format(local_dir=i.local_dir)
-        if self.args.clang:
-             if Utils.isMac():
-                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
-                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
-                  """
-                  #&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib
-                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
-             else:
-                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
-                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
-        elif self.CXX == "g++-4.8":
-            if Utils.isMac():
-                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.8 : g++-4.8 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
-                 """ + installNameToolCmd
-            else:
-                cmd = """echo "using gcc : 4.8 : g++-4.8;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
-                 """
-        elif self.CXX == "g++-4.9":
-            if Utils.isMac():
-                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++-4.9 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
-                 """ + installNameToolCmd
-            else:
-                cmd = """echo "using gcc : 4.9 : g++-4.9;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-4.9 -j {num_cores} install 
-                 """
-        elif self.CXX == "g++-5":
-            if Utils.isMac():
-                cmd = """echo "using gcc : 5 : g++-5;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && CC={CC} CXX={CXX} ./b2 --toolset=gcc-5 -j {num_cores} install 
-                 """ + installNameToolCmd
-            else:
-                cmd = """echo "using gcc : 5 : g++-5;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-5 -j {num_cores} install 
-                 """
-        elif self.CXX == "g++":
-            if Utils.isMac():
-                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++ : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
-                 """ + installNameToolCmd
-            else:
-                cmd = """echo "using gcc : 4.9 : g++;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
-                 """
-        cmd = " ".join(cmd.split())
-        cmd = cmd.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
-        print cmd
-        self.__build(i, cmd)
+    def boost(self, version):
+        self.__defaultBuild("boost", version)
 
+    def r(self, version):
+        self.__defaultBuild("r", version)
 
+    def bamtools(self, version):
+        self.__defaultBuild("bamtools", version)
 
-    def r(self):
-        i = self.__path("r")
-        rHomeLoc = "bin/R RHOME"
-        if Utils.isMac():
-            rHomeLoc = "R.framework/Resources/bin/R RHOME"
-        #'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
-        cmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
-                && make -j {num_cores}
-                && make install
-                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
-                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX, RHOMELOC = rHomeLoc)
-        cmd = " ".join(cmd.split())
-        self.__build(i, cmd)
+    def bibcpp(self, version):
+        self.__defaultBuild("bibcpp", version)
 
-    def bamtools(self):
-        i = self.__path('bamtools')
-        cmd = """git checkout v2.4.0 && mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. 
-        && make -j {num_cores} install""".format(
-            local_dir=shellquote(i.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGit(i, cmd)
-
-    def bibcpp(self):
-        i = self.__path('bibcpp')
-        if "bibcpp" in self.setUpsNeeded and self.setUpsNeeded["bibcpp"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibcpp"])
-        else:    
-            self.__buildBibProject(i)
-
-    def bibseq(self):
-        i = self.__path('bibseq')
-        if "bibseq" in self.setUpsNeeded and self.setUpsNeeded["bibseq"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseq"])
-        else:    
-            self.__buildBibProject(i)
+    def bibseq(self, version):
+        self.__defaultBuild("bibseq", version)
         
-    def twobit(self):
-        i = self.__path('twobit')
-        if "twobit" in self.setUpsNeeded and self.setUpsNeeded["twobit"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["twobit"])
-        else:    
-            self.__buildBibProject(i)
+    def twobit(self, version):
+        self.__defaultBuild("twobit", version)
             
-    def sharedMutex(self):
-        i = self.__path('sharedmutex')
-        if "sharedmutex" in self.setUpsNeeded and self.setUpsNeeded["sharedmutex"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["sharedmutex"])
-        else:    
-            self.__buildBibProject(i)
+    def sharedMutex(self, version):
+        self.__defaultBuild("sharedmutex", version)
     
+    def bibseqDev(self, version):
+        self.__defaultBuild("bibseqdev", version)
         
-    def bibseqDev(self):
-        i = self.__path('bibseqdev')
-        if "bibseqdev" in self.setUpsNeeded and self.setUpsNeeded["bibseqdev"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseqdev"])
-        else:    
-            self.__buildBibProject(i)
-        
-    def SeekDeep(self):
-        i = self.__path('seekdeep')
-        if "seekdeep" in self.setUpsNeeded and self.setUpsNeeded["seekdeep"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeep"])
-        else:    
-            self.__buildBibProject(i)
+    def SeekDeep(self, version):
+        self.__defaultBuild("seekdeep", version)
     
-    def SeekDeepDev(self):
-        i = self.__path('seekdeepdev')
-        if "seekdeepdev" in self.setUpsNeeded and self.setUpsNeeded["seekdeepdev"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeepdev"])
-        else:    
-            self.__buildBibProject(i)
+    def SeekDeepDev(self, version):
+        self.__defaultBuild("seekdeepdev", version)
         
-    def seqserver(self):
-        i = self.__path('seqserver')
-        if "seqserver" in self.setUpsNeeded and self.setUpsNeeded["seqserver"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["seqserver"])
-        else:    
-            self.__buildBibProject(i)
+    def seqserver(self, version):
+        self.__defaultBuild("seqserver", version)
         
-    def njhRInside(self):
-        i = self.__path('njhrinside')
-        if "njhrinside" in self.setUpsNeeded and self.setUpsNeeded["njhrinside"] != "":
-            self.__buildBibProjectBranch(i, self.setUpsNeeded["njhrinside"])
-        else:    
-            self.__buildBibProject(i)
+    def njhRInside(self, version):
+        self.__defaultBuild("njhrinside", version)
         
-    def cppprogutils(self):
-        i = self.__path('cppprogutils')
-        if "cppprogutils" in self.setUpsNeeded and self.setUpsNeeded["cppprogutils"] != "":
-            self.__gitTag(i, self.setUpsNeeded["cppprogutils"])
-        else:    
-            self.__git(i)
+    def cppprogutils(self, version):
+        self.__defaultBuild("cppprogutils", version)
     
-    def jsoncpp(self):
-        i = self.__path('jsoncpp')
-        cmd = """mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. 
-        && make -j {num_cores} install""".format(
-            local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGit(i, cmd)
+    def jsoncpp(self, version):
+        self.__defaultBuild("jsoncpp", version)
         
-    def mongoc(self):
-        i = self.__path('mongoc')
-        if Utils.isMac():
-            cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --prefix={local_dir}
-            && make -j {num_cores}  && make install""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
+    def mongoc(self, version):
+        self.__defaultBuild("mongoc", version)
+        
+    def mongocxx(self, version):
+        if "3.0.1" == version:
+            pack = self.__package(package)
+            if not pack.hasVersion(version):
+                raise Exception("No set up for version " + str(version) + " for " + str(package))
+            bPaths = pack.versions_[version]
+            cmd = pack.defaultBuildCmd_.format(local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX, ext_dir = self.dirMaster_.base_dir,mongoc_ver = "1.3.3")
+            print cmd
+            #tagName = "r3.0.0"
+            tagName = "07d4243445b5f0f333bf0ee9b3f482e74adf67a4" #r3.0.1
+            self.__buildFromGitTag(bPath, cmd, tagName)
         else:
-            cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir}
-            && make -j {num_cores}  && make install""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
-        cmd = " ".join(cmd.split())
-        branchName = "1.3.3"
-        self.__buildFromGitTag(i, cmd, branchName)
-        
-    def mongocxx(self):
-        i = self.__path('mongocxx')
-        if Utils.isMac():
-            cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
-            && make -j {num_cores} && make install""".format(local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
-        else:
-            cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
-            && make -j {num_cores} && make install""".format(local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        #branchName = "r3.0.0"
-        branchName = "07d4243445b5f0f333bf0ee9b3f482e74adf67a4" #r3.0.1
-        
-        self.__buildFromGitTag(i, cmd, branchName)
+            self.__defaultBuild("mongocxx", version)
     
-    def cppcms(self):
-        i = self.__path('cppcms')
-        cmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)  
-        if(sys.platform == "darwin"):
-            cmd += " && install_name_tool -change libbooster.0.dylib {local_dir}/lib/libbooster.0.dylib {local_dir}/lib/libcppcms.1.dylib".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores())
-        cmd = " ".join(cmd.split())
-        self.__build(i, cmd)
+    def cppcms(self, version):
+        self.__defaultBuild("cppcms", version)
 
-    def armadillo(self):
-        i = self.__path('armadillo')
-        cmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install".format(
-            local_dir=shellquote(i.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
-        cmd = " ".join(cmd.split())
-        self.__build(i, cmd)
+    def armadillo(self, version):
+        self.__defaultBuild("armadillo", version)
 
-
-
-    def zi_lib(self):
-        self.__git(self.__path('zi_lib'))
+    def zi_lib(self, version):
+        self.__defaultBuild("zi_lib", version)
         
-    def pstreams(self):
-        pspaths = self.__path('pstreams')
-        os.mkdir(pspaths.local_dir)
-        gitCmd = "git clone {url} {d}".format(url=pspaths.url, d=shellquote(os.path.join(pspaths.local_dir, "pstreams")))
-        Utils.run(gitCmd)
+    def pstreams(self, version):
+        self.__defaultBuild("pstreams", version)
 
-    def cppitertools(self):
-        cppitpaths = self.__path('cppitertools')
-        os.mkdir(cppitpaths.local_dir)
-        gitCmd = "git clone {url} {d}".format(url=cppitpaths.url, d=shellquote(os.path.join(cppitpaths.local_dir, "cppitertools")))
-        Utils.run(gitCmd)
-        cmd = "cd {d} && git checkout d4f79321842dd584f799a7d51d3e066a2cdb7cac".format(d=shellquote(os.path.join(cppitpaths.local_dir, "cppitertools")))
-        Utils.run(cmd)
+    def cppitertools(self, version):
+        self.__defaultBuild("cppitertools", version)
     
-    def dlib(self):
-        i = self.__path('dlib')
-        cmd = """
-mkdir {local_dir} &&
-cp -a * {local_dir}/
-""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores())
-        cmd = " ".join(cmd.split('\n'))
-        self.__build(i, cmd)
+    def dlib(self, version):
+        self.__defaultBuild("dlib", version)
         
-    def libsvm(self):
-        i = self.__path('libsvm')
-        cmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}".format(
-            local_dir=shellquote(i.local_dir))
-        self.__build(i, cmd)
+    def libsvm(self, version):
+        self.__defaultBuild("libsvm", version)
 
-    def catch(self):
-        self.__git(self.__path('catch'))
+    def catch(self, version):
+        self.__defaultBuild("catch", version)
 
 
 def ubuntu(self):
@@ -1039,7 +898,7 @@ def main():
         if not cmakeWhich:
             print CT.boldRed("Could not find " + CT.purple + "cmake")
             if Utils.isMac():
-                print "If you have brew install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+                print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
             else:
                 print "On ubuntu to install latest cmake do the following"
                 print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
