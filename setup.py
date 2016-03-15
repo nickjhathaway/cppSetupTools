@@ -14,14 +14,8 @@ from color_text import ColorText as CT
 
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
 
-def shellquote(s):
-    # from http://stackoverflow.com/a/35857
-    return "'" + s.replace("'", "'\\''") + "'"
-
-class Paths():
-    '''class to hold and setup all the necessary paths for 
-    downloading, building, and then installing packages/libraries'''
-    def __init__(self, externalLoc):
+class LibDirMaster():
+    def __init__(self,externalLoc):
         self.base_dir = externalLoc; #top dir to hold tars,build, local directories
         
         self.ext_tars = os.path.join(self.base_dir, "tarballs") #location to keep tarballs of programs/libraries downloads
@@ -31,56 +25,99 @@ class Paths():
         Utils.mkdir(self.ext_tars) #tar storage directory
         Utils.mkdir(self.ext_build) #build directory
         Utils.mkdir(self.install_dir) #local directory
-        self.paths = {} #dictionary to hold path infos
-        self.paths["zi_lib"] = self.__zi_lib()
-        self.paths["pstreams"] = self.__pstreams()
-        self.paths["cppitertools"] = self.__cppitertools()
-        self.paths["cppprogutils"] = self.__cppprogutils()
-        self.paths["boost"] = self.__boost()
-        self.paths["r"] = self.__r()
-        self.paths["cppcms"] = self.__cppcms()
-        self.paths["bamtools"] = self.__bamtools()
-        self.paths["jsoncpp"] = self.__jsoncpp()
-        self.paths["pear"] = self.__pear()
-        self.paths["mathgl"] = self.__mathgl()
-        self.paths["armadillo"] = self.__armadillo()
-        self.paths["mlpack"] = self.__mlpack()
-        self.paths["liblinear"] = self.__liblinear()
-        self.paths["bibseq"] = self.__bibseq()
-        self.paths["bibcpp"] = self.__bibcpp()
-        self.paths["seekdeep"] = self.__SeekDeep()
-        self.paths["bibseqdev"] = self.__bibseqDev()
-        self.paths["seekdeepdev"] = self.__SeekDeepDev()
-        self.paths["seqserver"] = self.__seqserver()
-        self.paths["njhrinside"] = self.__njhRInside()
-        self.paths["twobit"] = self.__twobit()
-        self.paths["sharedmutex"] = self.__sharedMutex()
-        self.paths["dlib"] = self.__dlib()
-        self.paths["libsvm"] = self.__libsvm()
-        self.paths["mongoc"] = self.__mongoc()
-        self.paths["mongocxx"] = self.__mongocxx()
-        self.paths["catch"] = self.__catch()
+
+def shellquote(s):
+    # from http://stackoverflow.com/a/35857
+    return "'" + s.replace("'", "'\\''") + "'"
+
+class CPPLibPackage():
+    def __init__(self, name, defaultBuildCmd, dirMaster):
+        self.name_ = name
+        self.defaultBuildCmd_ = defaultBuildCmd
+        self.version_ = {}
+        self.externalLibDir_ = dirMaster
+    
+    def addVersion(self, url, verName):
+        build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, self.verName)
+        build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, self.verName, self.name_)
+        local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
+        self.version_[verName] = BuildPaths(url, build_dir, build_sub_dir, local_dir)
+    
+    def addHeaderOnlyVersion(self, url, verName):
+        '''set up for header only libraries, these just need
+         the header copied no need for build_dir build_sub_dir '''
+        local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
+        self.version_[verName] = BuildPaths(url, "", "", local_dir)
+        
+
+
+class Packages():
+    '''class to hold and setup all the necessary paths for 
+    downloading, building, and then installing packages/libraries'''
+    def __init__(self, externalLoc):
+        self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars,build, local directories
+        
+        self.packages_ = {} #dictionary to hold path infos
+        self.packages_["zi_lib"] = self.__zi_lib()
+        self.packages_["pstreams"] = self.__pstreams()
+        self.packages_["cppitertools"] = self.__cppitertools()
+        self.packages_["cppprogutils"] = self.__cppprogutils()
+        self.packages_["boost"] = self.__boost()
+        self.packages_["r"] = self.__r()
+        self.packages_["cppcms"] = self.__cppcms()
+        self.packages_["bamtools"] = self.__bamtools()
+        self.packages_["jsoncpp"] = self.__jsoncpp()
+        self.packages_["pear"] = self.__pear()
+        self.packages_["mathgl"] = self.__mathgl()
+        self.packages_["armadillo"] = self.__armadillo()
+        self.packages_["mlpack"] = self.__mlpack()
+        self.packages_["liblinear"] = self.__liblinear()
+        self.packages_["bibseq"] = self.__bibseq()
+        self.packages_["bibcpp"] = self.__bibcpp()
+        self.packages_["seekdeep"] = self.__SeekDeep()
+        self.packages_["bibseqdev"] = self.__bibseqDev()
+        self.packages_["seekdeepdev"] = self.__SeekDeepDev()
+        self.packages_["seqserver"] = self.__seqserver()
+        self.packages_["njhrinside"] = self.__njhRInside()
+        self.packages_["twobit"] = self.__twobit()
+        self.packages_["sharedmutex"] = self.__sharedMutex()
+        self.packages_["dlib"] = self.__dlib()
+        self.packages_["libsvm"] = self.__libsvm()
+        self.packages_["mongoc"] = self.__mongoc()
+        self.packages_["mongocxx"] = self.__mongocxx()
+        self.packages_["catch"] = self.__catch()
 
     def path(self, name):
         '''get path info if it exists'''
-        if name in self.paths:
-            return self.paths[name]
+        if name in self.packages_:
+            return self.packages_[name]
         raise Exception(name + " not found in paths")
 
     def __zi_lib(self):
+        name = "zi_lib"
         url = 'https://github.com/weng-lab/zi_lib.git'
-        local_dir = os.path.join(self.install_dir, "zi_lib")
-        return BuildPaths(url, '', '', local_dir)
+        buildCmd = ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack.addHeaderOnlyVersion(url, "master")
+        return pack
     
     def __pstreams(self):
+        name = "pstreams"
         url = 'https://github.com/nickjhathaway/pstreams'
-        local_dir = os.path.join(self.install_dir, "pstreams")
-        return BuildPaths(url, '', '', local_dir)
+        buildCmd = ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack.addHeaderOnlyVersion(url, "master")
+        pack.addHeaderOnlyVersion(url, "RELEASE_0_8_1")
+        return pack
 
     def __bamtools(self):
         url = 'https://github.com/pezmaster31/bamtools.git'
         name = "bamtools"
-        return self.__package_dirs(url, name)
+        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_)
+        pack.addVersion(url, "2.4.0")
+        pack.addVersion(url, "2.3.0")
+        return pack
     
     def __jsoncpp(self):
         url = "https://github.com/open-source-parsers/jsoncpp.git"
@@ -228,7 +265,7 @@ class Setup:
             self.extDirLoc = os.path.abspath(os.path.join(os.path.dirname(__file__), "external"))
         else:
             self.extDirLoc = os.path.abspath(self.parseForExtPath(args.compfile[0]))
-        self.paths = Paths(self.extDirLoc) # path object to hold the paths for install
+        self.packages_ = Paths(self.extDirLoc) # path object to hold the paths for install
         self.args = args # command line arguments parsed by argument parser
         self.setUps = {} # all available set ups
         self.setUpsNeeded = {} # the setups that need to be done
@@ -378,7 +415,7 @@ class Setup:
     
 
     def __path(self, name):
-        return self.paths.path(name)
+        return self.packages_.path(name)
 
     def __setup(self, name, builder_f):
         if os.path.exists(self.__path(name).local_dir):
@@ -429,7 +466,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def __build(self, i, cmd):
         print "\t Getting file..."
-        fnp = Utils.get_file_if_size_diff(i.url, self.paths.ext_tars)
+        fnp = Utils.get_file_if_size_diff(i.url, self.packages_.ext_tars)
         Utils.clear_dir(i.build_dir)
         Utils.untar(fnp, i.build_dir)
         try:
@@ -444,7 +481,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
@@ -454,7 +491,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
@@ -465,7 +502,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py --compfile compfile.mk --numCores {num_cores}
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
@@ -476,7 +513,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make clean 
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.packages_.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
@@ -513,8 +550,8 @@ make COMPFILE=compfile.mk -j {num_cores}
             print "cloning from {url}".format(url=i.url)
             cCmd = "git clone {url} {d}".format(url=i.url, d=i.build_dir)
             try:
-                print self.paths.ext_build
-                Utils.run_in_dir(cCmd, self.paths.ext_build)
+                print self.packages_.ext_build
+                Utils.run_in_dir(cCmd, self.packages_.ext_build)
             except:
                 print "failed to clone from {url}".format(url=i.url)
                 sys.exit(1)
@@ -537,8 +574,8 @@ make COMPFILE=compfile.mk -j {num_cores}
             print "cloning from {url}".format(url=i.url)
             cCmd = "git clone -b "+ branchName + " {url} {d}".format(url=i.url, d=i.build_dir)
             try:
-                print self.paths.ext_build
-                Utils.run_in_dir(cCmd, self.paths.ext_build)
+                print self.packages_.ext_build
+                Utils.run_in_dir(cCmd, self.packages_.ext_build)
             except:
                 print "failed to clone from {url}".format(url=i.url)
                 sys.exit(1)
@@ -562,8 +599,8 @@ make COMPFILE=compfile.mk -j {num_cores}
             cCmd = "git clone {url} {d}".format(url=i.url, d=i.build_dir)
             tagCmd = "git checkout {tag}".format(tag=tagName)
             try:
-                print self.paths.ext_build
-                Utils.run_in_dir(cCmd, self.paths.ext_build)
+                print self.packages_.ext_build
+                Utils.run_in_dir(cCmd, self.packages_.ext_build)
                 Utils.run_in_dir(tagCmd, i.build_dir)
             except:
                 print "failed to clone from {url}".format(url=i.url)
