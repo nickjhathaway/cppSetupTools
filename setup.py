@@ -437,8 +437,10 @@ class Packages():
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "2.2.1")
+        pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
+        pack.addVersion(url, "2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.versions_["2.2.1"].additionalLdFlags_ = ["-lcurl"] 
         return pack
     
     def __bibseqDev(self):
@@ -446,7 +448,7 @@ class Packages():
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master")
+        pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
         return pack
     
     def __twobit(self):
@@ -454,8 +456,8 @@ class Packages():
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.0")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "1.0")
+        pack.addVersion(url, "develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
+        pack.addVersion(url, "1.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "1.0")])
         return pack
     
     def __sharedMutex(self):
@@ -472,8 +474,8 @@ class Packages():
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "2.2.1")
+        pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
+        pack.addVersion(url, "2.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("njhRInside", "1.1.1"),LibNameVer("seqServer", "1.2.1")])
         return pack
     
     def __SeekDeepDev(self):
@@ -481,7 +483,7 @@ class Packages():
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master")
+        pack.addVersion(url, "master", [LibNameVer("bibseqDev", "master"),LibNameVer("seqServer", "develop")])
         return pack
     
     def __seqserver(self):
@@ -489,8 +491,8 @@ class Packages():
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "1.2.1")
+        pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("cppcms", "1.0.5")])
+        pack.addVersion(url, "1.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("cppcms", "1.0.5")])
         return pack
     
     def __njhRInside(self):
@@ -498,17 +500,19 @@ class Packages():
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "1.1.1")
+        pack.addVersion(url, "develop",[LibNameVer("R", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+        pack.addVersion(url, "1.1.1", [LibNameVer("R", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
         return pack
     
     def __bibcpp(self):
         url = "https://github.com/umass-bib/bibcpp.git"
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "1.2.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
+        pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"] 
+        pack.addVersion(url, "2.2.1",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_58_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.versions_["2.2.1"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"]         
         return pack
 
     def __boost(self):
@@ -567,6 +571,42 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
         pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
         return pack
+    
+    def getPackagesNames(self):
+        return sorted(self.packages_.keys())
+    
+    def checkForPackVer(self, packVer):
+        if packVer.name not in self.packages_:
+            raise Exception("Lib " + packVer.name + " not found in libs, options are " + ", ".join(self.getLibNames()))
+        else:
+            if packVer.version not in self.packages_[packVer.name].versions_:
+                raise Exception("Version " + packVer.version + " for lib " \
+                                + packVer.name + " not found in available versions, options are " \
+                                + ", ".join(self.packages_[packVer.name].getVersions()))
+                
+    def getLdFlags(self, packVer):
+        self.checkForPackVer(packVer)
+        return self.packages_[packVer.name].versions_[packVer.version].getLdFlags(self.dirMaster_.install_dir)
+    
+    def getIncludeFlags(self, packVer):
+        self.checkForPackVer(packVer)
+        return self.packages_[packVer.name].versions_[packVer.version].getIncludeFlags(self.dirMaster_.install_dir)
+    
+    def isInstalled(self, packVer):
+        if os.path.exists(os.path.join(self.dirMaster_.install_dir, joinNameVer(packVer))):
+            return True
+        else:
+            return False
+    
+    def getDefaultIncludeFlags(self):
+        return "-I./src/"
+    
+    def getDefaultLDFlags(self):
+        ret = ""
+        if Utils.isMac():
+            #for dylib path fixing in macs, this gets rid of the name_size limit, which why the hell is there a name size limit
+            ret = ret + "-headerpad_max_install_names" 
+        return ret
 
     def __bibProjectBuildCmd(self):
         cmd = """
