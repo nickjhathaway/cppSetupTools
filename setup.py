@@ -253,11 +253,11 @@ class Packages():
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
         pack.addVersion(url, "v2.4.0")
-        pack.versions_["v2.4.0"].libPath_ = os.path.join(pack.versions_["v2.4.0"].libPath_,libName)
-        pack.versions_["v2.4.0"].includePath_ = os.path.join(pack.versions_["v2.4.0"].includePath_,libName)
+        pack.versions_["v2.4.0"].libPath_ = os.path.join(pack.versions_["v2.4.0"].libPath_,name)
+        pack.versions_["v2.4.0"].includePath_ = os.path.join(pack.versions_["v2.4.0"].includePath_,name)
         pack.addVersion(url, "v2.3.0")
-        pack.versions_["v2.3.0"].libPath_ = os.path.join(pack.versions_["v2.3.0"].libPath_,libName)
-        pack.versions_["v2.3.0"].includePath_ = os.path.join(pack.versions_["v2.3.0"].includePath_,libName)
+        pack.versions_["v2.3.0"].libPath_ = os.path.join(pack.versions_["v2.3.0"].libPath_,name)
+        pack.versions_["v2.3.0"].includePath_ = os.path.join(pack.versions_["v2.3.0"].includePath_,name)
         return pack
     
     def __jsoncpp(self):
@@ -326,7 +326,9 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.2.2")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.2.4")
+        pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
+        pack.versions_["3.2.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.3.tar.gz", "3.2.3", self.dirMaster_)
         pack.versions_["3.2.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2", self.dirMaster_)
         pack.versions_["3.2.1"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1", self.dirMaster_)
         pack.versions_["3.2.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0", self.dirMaster_)
@@ -408,7 +410,7 @@ class Packages():
         buildCmd = "mkdir {local_dir} && cp -a * {local_dir}/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "18.7")
         pack.addVersion("http://freefr.dl.sourceforge.net/project/dclib/dlib/v18.7/dlib-18.7.tar.bz2", "18.7")
-        pack.versions_["18.7"].includePath_ = joinNameVer(pack.versions_[verName].nameVer_)
+        pack.versions_["18.7"].includePath_ = joinNameVer(pack.versions_["18.7"].nameVer_)
         pack.versions_["18.7"].libPath_ = ""
         return pack
     
@@ -417,7 +419,7 @@ class Packages():
         buildCmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.18")
         pack.addVersion("http://www.csie.ntu.edu.tw/~cjlin/libsvm/oldfiles/libsvm-3.18.tar.gz", "3.18")
-        pack.versions_["3.18"].includePath_ = joinNameVer(pack.versions_[verName].nameVer_)
+        pack.versions_["3.18"].includePath_ = joinNameVer(pack.versions_["3.18"].nameVer_)
         pack.versions_["3.18"].libPath_ = ""
         return pack
     
@@ -643,8 +645,7 @@ class Setup:
                 if not set in self.setUps.keys():
                     print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
                 else:
-                    self.rmDirsForLib(set)
-                        
+                    self.rmDirsForLib(LibNameVer(set, self.setUpsNeeded[set]))
         for set in self.setUpsNeeded.keys():
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
@@ -768,11 +769,14 @@ class Setup:
         for l in libs:
             self.rmDirsForLib(l)
     
-    def rmDirsForLib(self,lib):
-        if lib not in self.setUps:
-            print CT.boldBlack( "Unrecognized lib: ") + CT.boldRed(lib)
+    def rmDirsForLib(self,packVer):
+        if packVer.name not in self.setUps:
+            print CT.boldBlack( "Unrecognized package: ") + CT.boldRed(packVer.name)
         else:
-            p = self.__path(lib)
+            pack = self.__package(packVer.name)
+            if not pack.hasVersion(packVer.version):
+                raise Exception("No version " + str(packVer.version) + " for " + str(packVer.name))
+            p = pack.versions_[packVer.version].bPaths_
             if p.build_dir:
                 print "Removing " + CT.boldBlack(p.build_dir)
                 Utils.rm_rf(p.build_dir)
