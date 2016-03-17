@@ -16,6 +16,30 @@ from color_text import ColorText as CT
 
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
 
+
+def runAndCapture(cmd):
+    # print CT.boldRed("before process")
+    # from http://stackoverflow.com/a/4418193
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #print CT.boldRed("after process")
+    # Poll process for new output until finished
+    actualOutput = ""
+    while True:
+        nextline = process.stdout.readline()
+        if nextline == '' and process.poll() != None:
+            break
+        actualOutput = actualOutput + nextline
+        #sys.stdout.write(nextline)
+        #sys.stdout.flush()
+
+    output = process.communicate()[0]
+    exitCode = process.returncode
+    #print "exit code "  + CT.boldRed(str(exitCode))
+    if (exitCode == 0):
+        return actualOutput
+        #return output
+    raise Exception(cmd, exitCode, output)
+
 class LibDirMaster():
     def __init__(self,externalLoc):
         self.base_dir = os.path.abspath(externalLoc); #top dir to hold tars,build, local directories
@@ -32,9 +56,105 @@ def shellquote(s):
     # from http://stackoverflow.com/a/35857
     return "'" + s.replace("'", "'\\''") + "'"
 
+
+LibNameVer = namedtuple("LibNameVer", 'name version')
+
+
+def joinNameVer(libNameVerTup):
+    return os.path.join(libNameVerTup.name, libNameVerTup.version, libNameVerTup.name)
+
+class CPPLibPackageVersionR():
+    def __init__(self, name, url, version, dirMaster):
+        self.nameVer_ = LibNameVer(name, version)
+        build_dir = os.path.join(dirMaster.ext_build, name, version)
+        fn = os.path.basename(url)
+        fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
+        build_sub_dir = os.path.join(dirMaster.ext_build, name, version, fn_noex)
+        local_dir = os.path.join(dirMaster.install_dir, name, version, name)
+        self.bPaths_ = BuildPaths(url, build_dir, build_sub_dir, local_dir)
+        self.rInstallLoc_ = ""
+        self.rExecutable_ = ""
+        self.rHome_ = ""
+        
+        
+    def setExecutableLoc(self, localPath):
+        self.rInstallLoc_ = os.path.join(os.path.abspath(localPath), joinNameVer(self.nameVer_))
+        if Utils.isMac():
+            self.rExecutable_ = os.path.join(self.rInstallLoc_, "R.framework/Resources/bin/R")
+        else:
+            self.rExecutable_ = os.path.join(self.rInstallLoc_, "bin/R")
+        self.rHome_ = runAndCapture(self.rExecutable_ + " RHOME")
+    
+    def getIncludeFlags(self, localPath):
+        self.setExecutableLoc(localPath)
+        ret = "-DSTRICT_R_HEADERS"
+        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config --cppflags")
+        ret = ret + " " + runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        return ' '.join(ret.split())
+        
+    def getLdFlags(self, localPath):
+        self.setExecutableLoc(localPath)
+        ret = ""
+        ret = ret + runAndCapture(self.rExecutable_ + " CMD config --ldflags")
+        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
+        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
+        ret = ret + " " + "-Wl,-rpath," + self.rHome_ + "/lib"
+        ret = ret + " " + runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        return ' '.join(ret.split())
+
+
+class CPPLibPackageVersion():
+    def __init__(self, name, version, bPaths, depends):
+        self.nameVer_ = LibNameVer(name, version)
+        self.depends_ = depends #should be a list of LibNameVer
+        self.bPaths_ = bPaths
+        self.includePath_ = os.path.join(joinNameVer(self.nameVer_), "include")
+        self.additionalIncludeFlags_ = []
+        self.additionalIncludePaths_ = []
+        self.libPath_ = os.path.join(joinNameVer(self.nameVer_), "lib")
+        self.additionalLdFlags_ = []
+        self.altLibName_ = ""
+        
+        
+    def getIncludeFlags(self, localPath):
+        ret = ""
+        if(len(self.includePath_) > 0):
+            ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+        if len(self.additionalIncludePaths_ > 0):
+            for addPath in self.additionalIncludePaths_:
+                if len(ret > 0):
+                    ret = ret + " "
+                ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+        if len(self.additionalIncludeFlags_ > 0):
+            if len(ret > 0):
+                ret = ret + " "
+            ret = ret + " ".join(self.additionalIncludeFlags_) 
+        return ret
+    
+    def getLdFlags(self, localPath):
+        ret = ""
+        retList = []
+        libPath = str(os.path.join(localPath,self.libPath_))
+        if(len(self.libPath_) > 0):
+            retList.append("-Wl,-rpath," + str(libPath))
+            retList.append("-L" + str(libPath))
+            if len(self.altLibName_ > 0):
+                retList.append("-l" + self.altLibName_)
+            else:
+                retList.append("-l" + self.nameVer_.name)
+        if(len(self.additionalLdFlags_) > 0):
+            retList.extend(self.additionalLdFlags_)
+        if(len(retList) > 0):
+            ret = " ".join(retList)                 
+        return ret
+    
+
 class CPPLibPackage():
-    def __init__(self, name, defaultBuildCmd, dirMaster, libType):
+    def __init__(self, name, defaultBuildCmd, dirMaster, libType, defaultVersion):
         self.name_ = name
+        self.defaultVersion_ = defaultVersion
         self.defaultBuildCmd_ = defaultBuildCmd
         self.versions_ = {}
         self.externalLibDir_ = dirMaster
@@ -42,25 +162,27 @@ class CPPLibPackage():
             raise Exception("libType should be 'git', 'git-headeronly', or 'file', not " + str(libType))
         self.libType_ = libType #should be git or file
     
-    def addVersion(self, url, verName):
+    def addVersion(self, url, verName, depends=[]):
         build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
         fn = os.path.basename(url)
         fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
         build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName, fn_noex)
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
-        self.versions_[verName] = BuildPaths(url, build_dir, build_sub_dir, local_dir)
+        self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, build_dir, build_sub_dir, local_dir), depends)
     
-    def addHeaderOnlyVersion(self, url, verName):
+    def addHeaderOnlyVersion(self, url, verName, depends=[]):
         '''set up for header only libraries, these just need
          the header copied no need for build_dir build_sub_dir '''
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
-        self.versions_[verName] = BuildPaths(url, "", "", local_dir)
+        self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, "", "", local_dir), depends)
+        self.versions_[verName].includePath_ = joinNameVer(self.versions_[verName].nameVer_)
+        self.versions_[verName].libPath_ = ""
         
     def hasVersion(self, version):
         return version in self.versions_
     
     def getVersions(self):
-        return self.versions_.keys()
+        return sorted(self.versions_.keys())
         
 
 
@@ -111,15 +233,16 @@ class Packages():
         name = "zi_lib"
         url = 'https://github.com/weng-lab/zi_lib.git'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "master")
         pack.addHeaderOnlyVersion(url, "master")
+        pack.versions_["master"].additionalLdFlags_ = ["-lrt"]
         return pack
     
     def __pstreams(self):
         name = "pstreams"
         url = 'https://github.com/nickjhathaway/pstreams'
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "RELEASE_0_8_1")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "RELEASE_0_8_1")
         return pack
@@ -128,16 +251,20 @@ class Packages():
         url = 'https://github.com/pezmaster31/bamtools.git'
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
         pack.addVersion(url, "v2.4.0")
+        pack.versions_["v2.4.0"].libPath_ = os.path.join(pack.versions_["v2.4.0"].libPath_,libName)
+        pack.versions_["v2.4.0"].includePath_ = os.path.join(pack.versions_["v2.4.0"].includePath_,libName)
         pack.addVersion(url, "v2.3.0")
+        pack.versions_["v2.3.0"].libPath_ = os.path.join(pack.versions_["v2.3.0"].libPath_,libName)
+        pack.versions_["v2.3.0"].includePath_ = os.path.join(pack.versions_["v2.3.0"].includePath_,libName)
         return pack
     
     def __jsoncpp(self):
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.6.5")
         pack.addVersion(url, "1.6.5")
         pack.addVersion(url, "master")
         return pack
@@ -149,26 +276,30 @@ class Packages():
             buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --prefix={local_dir}&& make -j {num_cores}  && make install"
         else:
             buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir} && make -j {num_cores}  && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
         pack.addVersion(url, "1.3.3")
+        pack.versions_["1.3.3"].additionalIncludePaths_.append(os.path.join(pack.versions_["1.3.3"].includePath_, "/libmongoc-1.0"))
+        pack.versions_["1.3.3"].includePath_ = pack.versions_["1.3.3"].includePath_ + "/libbson-1.0"
+        pack.versions_["1.3.3"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        pack.versions_["1.3.3"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0", "-lrt"]  
         return pack
     
     def __mongocxx(self):
         url = "https://github.com/mongodb/mongo-cxx-driver"
         name = "mongocxx"
-        if Utils.isMac():
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        else:
-            buildCmd = "cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        buildCmd = "cd build && CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.0.1")
         pack.addVersion(url, "3.0.1")
+        pack.versions_["3.0.1"].additionalIncludePaths_.append(os.path.join(pack.versions_["3.0.1"].includePath_, "/mongocxx/v_noabi"))
+        pack.versions_["3.0.1"].includePath_ = pack.versions_["3.0.1"].includePath_ + "/mongocxx/v_noabi"
+        pack.versions_["3.0.1"].additionalLdFlags_ = ["-lbsoncxx"] 
         return pack
 
     def __cppitertools(self):
         url = 'https://github.com/ryanhaining/cppitertools.git'
         name = "cppitertools"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
         pack.addHeaderOnlyVersion(url, "master")
         pack.addHeaderOnlyVersion(url, "v0.1")
         return pack
@@ -177,8 +308,9 @@ class Packages():
         url = 'https://github.com/philsquared/Catch.git'
         name = "catch"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v1.3.3")
         pack.addHeaderOnlyVersion(url, "v1.3.3")
+        pack.versions_["v1.3.3"].includePath_ = os.path.join(joinNameVer(pack.versions_["v1.3.3"].nameVer_), "single_include")
         return pack
 
     def __r(self):
@@ -194,17 +326,17 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/R/R-3.1.3.tar.gz", "3.1.3")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.2.2")
+        pack.versions_["3.2.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2", self.dirMaster_)
+        pack.versions_["3.2.1"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1", self.dirMaster_)
+        pack.versions_["3.2.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0", self.dirMaster_)
+        pack.versions_["3.1.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.1.3", self.dirMaster_)
         return pack
 
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "6.200.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz", "6.200.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-5.600.2.tar.gz", "5.600.2")
@@ -266,38 +398,45 @@ class Packages():
         if(sys.platform == "darwin"):
             buildCmd += " && install_name_tool -change libbooster.0.dylib {local_dir}/lib/libbooster.0.dylib {local_dir}/lib/libcppcms.1.dylib"
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.0.5")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cppcms/cppcms-1.0.5.tar.bz2", "1.0.5")
+        pack.versions_["1.0.5"].additionalLdFlags_ = ["-lbooster"]
         return pack
 
     def __dlib(self):
         name = "dlib"
         buildCmd = "mkdir {local_dir} && cp -a * {local_dir}/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "18.7")
         pack.addVersion("http://freefr.dl.sourceforge.net/project/dclib/dlib/v18.7/dlib-18.7.tar.bz2", "18.7")
+        pack.versions_["18.7"].includePath_ = joinNameVer(pack.versions_[verName].nameVer_)
+        pack.versions_["18.7"].libPath_ = ""
         return pack
     
     def __libsvm(self):
         name = "libsvm"
         buildCmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.18")
         pack.addVersion("http://www.csie.ntu.edu.tw/~cjlin/libsvm/oldfiles/libsvm-3.18.tar.gz", "3.18")
+        pack.versions_["3.18"].includePath_ = joinNameVer(pack.versions_[verName].nameVer_)
+        pack.versions_["3.18"].libPath_ = ""
         return pack
     
     def __cppprogutils(self):
         url = 'https://github.com/bailey-lab/cppprogutils.git'
         name = "cppprogutils"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "1.0")
         pack.addHeaderOnlyVersion(url, "develop")
+        pack.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
         pack.addHeaderOnlyVersion(url, "1.0")
+        pack.versions_["1.0"].additionalLdFlags_ = ["-lpthread"]
         return pack
     
     def __bibseq(self):
         url = "https://github.com/bailey-lab/bibseq.git"
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "2.2.1")
         return pack
@@ -306,7 +445,7 @@ class Packages():
         url = "https://github.com/bailey-lab/bibseqPrivate.git"
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.addVersion(url, "master")
         return pack
     
@@ -314,7 +453,7 @@ class Packages():
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.0")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.0")
         return pack
@@ -323,7 +462,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v0.1")
         return pack 
@@ -332,7 +471,7 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "2.2.1")
         return pack
@@ -341,7 +480,7 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeepPrivate.git"
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.addVersion(url, "master")
         return pack
     
@@ -349,7 +488,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/seqServer.git"
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.2.1")
         return pack
@@ -358,7 +497,7 @@ class Packages():
         url = "https://github.com/nickjhathaway/njhRInside.git"
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.1.1")
         return pack
@@ -367,7 +506,7 @@ class Packages():
         url = "https://github.com/umass-bib/bibcpp.git"
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.2.1")
         return pack
@@ -420,10 +559,13 @@ class Packages():
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
+        pack.versions_["1_58_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
+        pack.versions_["1_59_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
+        pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
         return pack
 
     def __bibProjectBuildCmd(self):
@@ -606,7 +748,7 @@ class Setup:
         pack = self.__package(name)
         if not pack.hasVersion(version):
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
-        bPath = pack.versions_[version]
+        bPath = pack.versions_[version].bPaths_
         if os.path.exists(bPath.local_dir):
             print name, CT.boldGreen("found at ") + CT.boldBlack(bPath.local_dir)
         else:
@@ -722,7 +864,7 @@ class Setup:
         pack = self.__package(package)
         if not pack.hasVersion(version):
             raise Exception("No set up for version " + str(version) + " for " + str(package))
-        bPaths = pack.versions_[version]
+        bPaths = pack.versions_[version].bPaths_
         cmd = pack.defaultBuildCmd_.format(local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd:
@@ -743,7 +885,7 @@ class Setup:
         rPack = self.__package("r")
         if not rPack.hasVersion(version):
             raise Exception("No set up for version " + str(version) + " for " + str("R"))
-        bPath = rPack.versions_[version]
+        bPath = rPack.versions_[version].bPaths_
         for pack in sourceFile.split(","):
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
@@ -758,7 +900,7 @@ class Setup:
         rPack = self.__package("r")
         if not rPack.hasVersion(version):
             raise Exception("No set up for version " + str(version) + " for " + str("R"))
-        bPath = rPack.versions_[version]
+        bPath = rPack.versions_[version].bPaths_
         for pack in packageName.split(","):
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
@@ -816,15 +958,16 @@ class Setup:
         
     def mongocxx(self, version):
         if "3.0.1" == version:
+            package = "mongocxx"
             pack = self.__package(package)
             if not pack.hasVersion(version):
                 raise Exception("No set up for version " + str(version) + " for " + str(package))
-            bPaths = pack.versions_[version]
+            bPaths = pack.versions_[version].bPaths_
             cmd = pack.defaultBuildCmd_.format(local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX, ext_dir = self.dirMaster_.base_dir,mongoc_ver = "1.3.3")
             print cmd
             #tagName = "r3.0.0"
             tagName = "07d4243445b5f0f333bf0ee9b3f482e74adf67a4" #r3.0.1
-            self.__buildFromGitTag(bPath, cmd, tagName)
+            self.__buildFromGitTag(bPaths, cmd, tagName)
         else:
             self.__defaultBuild("mongocxx", version)
     
