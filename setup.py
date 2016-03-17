@@ -541,7 +541,6 @@ class Packages():
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
             else:
-                whichClang = runAndCapture("which -a {CC}".format(CC=self.args.CC))
                 buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
@@ -910,7 +909,7 @@ class Setup:
         if not pack.hasVersion(version):
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         bPaths = pack.versions_[version].bPaths_
-        cmd = pack.defaultBuildCmd_.format(local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        cmd = pack.defaultBuildCmd_.format(build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd:
             print cmd
