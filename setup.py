@@ -541,7 +541,8 @@ class Packages():
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
             else:
-                buildCmd = """ln -s $(which {CC}) clang && ln -s $(which {CXX}) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+                whichClang = runAndCapture("which -a {CC}".format(CC=self.args.CC))
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.CXX.find("-") + 1):]
