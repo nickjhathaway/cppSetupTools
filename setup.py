@@ -541,7 +541,7 @@ class Packages():
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
             else:
-                buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install"""
+                buildCmd = """ln -s $(which {CC}) clang && ln -s $(which {CXX}) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.CXX.find("-") + 1):]
@@ -1121,4 +1121,8 @@ def main():
             s.setup()
             return 0
 
-main()
+if __name__ == '__main__':
+    main()
+    
+    
+    
