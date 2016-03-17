@@ -549,11 +549,11 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> project-config.jam 
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
+                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """echo "using gcc : """ + str(gccVer) + """ : {CXX};" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
+                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
