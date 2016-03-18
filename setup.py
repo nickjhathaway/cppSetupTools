@@ -906,7 +906,7 @@ class Setup:
                 sys.exit(1)
         else:
             print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone -b " + branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_dir)
+            cCmd = "git clone -b " + branchName + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
             try:
                 Utils.run(cCmd)
             except:
@@ -950,7 +950,7 @@ class Setup:
     
     def __gitBranch(self, bPath, branchName):
         print "cloning from {url}".format(url=bPath.url)
-        cCmd = "git clone -b {branch} {url} {d}".format(branch = branchName,url=bPath.url, d=bPath.build_dir)
+        cCmd = "git clone -b {branch} {url} {d}".format(branch = branchName,url=bPath.url, d=bPath.local_dir)
         try:
             Utils.run_in_dir(cCmd)
         except Exception, e:
