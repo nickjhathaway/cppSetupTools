@@ -433,8 +433,10 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "1.0")
         pack.addHeaderOnlyVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
+        pack.versions_["develop"].includePath_ = os.path.join(name, "develop", name)
         pack.addHeaderOnlyVersion(url, "1.0")
         pack.versions_["1.0"].additionalLdFlags_ = ["-lpthread"]
+        pack.versions_["1.0"].includePath_ = os.path.join(name, "1.0", name)
         return pack
     
     def __bibseq(self):
@@ -451,7 +453,7 @@ class Packages():
         return pack
     
     def __bibseqDev(self):
-        url = "https://github.com/bailey-lab/bibseqPrivate.git"
+        url = "git@github.com:bailey-lab/bibseqPrivate.git"
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
@@ -489,7 +491,7 @@ class Packages():
         return pack
     
     def __SeekDeepDev(self):
-        url = "https://github.com/bailey-lab/SeekDeepPrivate.git"
+        url = "git@github.com:bailey-lab/SeekDeepPrivate.git"
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
@@ -1224,7 +1226,7 @@ def main():
             cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
             Utils.run(cmd)
     else:
-        if len(s.setUpsNeeded) == 0:
+        if len(s.setUpsNeeded) == 0 and not args.compfile:
             s.printAvailableSetUps()
             return 1
         else:
