@@ -31,7 +31,7 @@ def runAndCapture(cmd):
         actualOutput = actualOutput + nextline
         #sys.stdout.write(nextline)
         #sys.stdout.flush()
-
+    #this is suppose to capture the output but it isn't for some reason so capturing it with the above
     output = process.communicate()[0]
     exitCode = process.returncode
     #print "exit code "  + CT.boldRed(str(exitCode))
@@ -75,6 +75,7 @@ class CPPLibPackageVersionR():
         self.rInstallLoc_ = ""
         self.rExecutable_ = ""
         self.rHome_ = ""
+        self.depends_ = []
         
         
     def setExecutableLoc(self, localPath):
@@ -115,6 +116,7 @@ class CPPLibPackageVersion():
         self.additionalIncludePaths_ = []
         self.libPath_ = os.path.join(joinNameVer(self.nameVer_), "lib")
         self.additionalLdFlags_ = []
+        self.libName_ = name
         self.altLibName_ = ""
         
         
@@ -122,13 +124,13 @@ class CPPLibPackageVersion():
         ret = ""
         if(len(self.includePath_) > 0):
             ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
-        if len(self.additionalIncludePaths_ > 0):
+        if len(self.additionalIncludePaths_) > 0:
             for addPath in self.additionalIncludePaths_:
-                if len(ret > 0):
+                if len(ret) > 0:
                     ret = ret + " "
                 ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
-        if len(self.additionalIncludeFlags_ > 0):
-            if len(ret > 0):
+        if len(self.additionalIncludeFlags_) > 0:
+            if len(ret)> 0:
                 ret = ret + " "
             ret = ret + " ".join(self.additionalIncludeFlags_) 
         return ret
@@ -140,13 +142,13 @@ class CPPLibPackageVersion():
         if(len(self.libPath_) > 0):
             retList.append("-Wl,-rpath," + str(libPath))
             retList.append("-L" + str(libPath))
-            if len(self.altLibName_ > 0):
+            if len(self.altLibName_) > 0:
                 retList.append("-l" + self.altLibName_)
-            else:
-                retList.append("-l" + self.nameVer_.name)
-        if(len(self.additionalLdFlags_) > 0):
+            elif "" != self.libName_:
+                retList.append("-l" + self.libName_)
+        if len(self.additionalLdFlags_) > 0:
             retList.extend(self.additionalLdFlags_)
-        if(len(retList) > 0):
+        if len(retList) > 0:
             ret = " ".join(retList)                 
         return ret
     
@@ -175,7 +177,8 @@ class CPPLibPackage():
          the header copied no need for build_dir build_sub_dir '''
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
         self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, "", "", local_dir), depends)
-        self.versions_[verName].includePath_ = joinNameVer(self.versions_[verName].nameVer_)
+        self.versions_[verName].includePath_ = os.path.join(self.name_, verName)
+        #self.versions_[verName].includePath_ = joinNameVer(self.versions_[verName].nameVer_)
         self.versions_[verName].libPath_ = ""
         
     def hasVersion(self, version):
@@ -278,7 +281,7 @@ class Packages():
             buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir} && make -j {num_cores}  && make install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
         pack.addVersion(url, "1.3.3")
-        pack.versions_["1.3.3"].additionalIncludePaths_.append(os.path.join(pack.versions_["1.3.3"].includePath_, "/libmongoc-1.0"))
+        pack.versions_["1.3.3"].additionalIncludePaths_.append(pack.versions_["1.3.3"].includePath_ + "/libmongoc-1.0")
         pack.versions_["1.3.3"].includePath_ = pack.versions_["1.3.3"].includePath_ + "/libbson-1.0"
         pack.versions_["1.3.3"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
         pack.versions_["1.3.3"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0", "-lrt"]  
@@ -289,9 +292,9 @@ class Packages():
         name = "mongocxx"
         buildCmd = "cd build && CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={ext_dir}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.0.1")
-        pack.addVersion(url, "3.0.1")
-        pack.versions_["3.0.1"].additionalIncludePaths_.append(os.path.join(pack.versions_["3.0.1"].includePath_, "/mongocxx/v_noabi"))
-        pack.versions_["3.0.1"].includePath_ = pack.versions_["3.0.1"].includePath_ + "/mongocxx/v_noabi"
+        pack.addVersion(url, "3.0.1", [LibNameVer("mongoc", "1.3.3")])
+        pack.versions_["3.0.1"].additionalIncludePaths_.append(pack.versions_["3.0.1"].includePath_ + "/mongocxx/v_noabi")
+        pack.versions_["3.0.1"].includePath_ = pack.versions_["3.0.1"].includePath_ + "/bsoncxx/v_noabi"
         pack.versions_["3.0.1"].additionalLdFlags_ = ["-lbsoncxx"] 
         return pack
 
@@ -439,9 +442,11 @@ class Packages():
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
-        pack.addVersion(url, "2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        if Utils.isMac():
+            pack.versions_["develop"].depends_.append(LibNameVer("sharedMutex", "v0.1"))
+        pack.addVersion(url, "2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["2.2.1"].additionalLdFlags_ = ["-lcurl"] 
         return pack
     
@@ -450,8 +455,11 @@ class Packages():
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("curl", "default"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        return pack
+        pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.versions_["master"].additionalLdFlags_ = ["-lcurl"]
+        if Utils.isMac():
+            pack.versions_["master"].depends_.append(LibNameVer("sharedMutex", "v0.1"))
+        return pack 
     
     def __twobit(self):
         url = "https://github.com/weng-lab/TwoBit.git"
@@ -515,7 +523,7 @@ class Packages():
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"] 
         pack.addVersion(url, "2.2.1",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_58_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
         pack.versions_["2.2.1"].additionalLdFlags_ = ["-lpthread", "-lz", "-lrt"]         
-        return pack
+        return pack#lcurl,"-lpthread", "-lz", "-lrt"
 
     def __boost(self):
         name = "boost"
@@ -568,10 +576,13 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
         pack.versions_["1_58_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
+        pack.versions_["1_58_0"].libName_ = ""
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
         pack.versions_["1_59_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
+        pack.versions_["1_59_0"].libName_ = ""
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
         pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem","-lboost_iostreams"]
+        pack.versions_["1_60_0"].libName_ = ""
         return pack
     
     def getPackagesNames(self):
@@ -585,6 +596,7 @@ class Packages():
                 raise Exception("Version " + packVer.version + " for lib " \
                                 + packVer.name + " not found in available versions, options are " \
                                 + ", ".join(self.packages_[packVer.name].getVersions()))
+        return True
                 
     def getLdFlags(self, packVer):
         self.checkForPackVer(packVer)
@@ -594,6 +606,46 @@ class Packages():
         self.checkForPackVer(packVer)
         return self.packages_[packVer.name].versions_[packVer.version].getIncludeFlags(self.dirMaster_.install_dir)
     
+    def writeMakefile(self, packVers, filename, overwrite = False):
+        if os.path.exists(filename) and not overwrite:
+            raise Exception("File: " + str(filename) + " already exists, use --overWrite to overwrite it")
+        with open(filename, "w") as f:
+            f.write("#Utils\n")
+            f.write("# from http://stackoverflow.com/a/18258352\n")
+            f.write("rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))\n")
+            f.write("#Default CXXFLAGS\n")
+            f.write("COMLIBS += " + self.getDefaultIncludeFlags() + "\n")
+            dLdFlags = self.getDefaultLDFlags( )
+            if "" != dLdFlags:
+                f.write("#Default LDFLAGS\n")
+                f.write("LD_FLAGS += " + dLdFlags + "\n")
+            for packVer in packVers:
+                pvIncFlags = self.getIncludeFlags(packVer)
+                if "" != pvIncFlags:
+                    f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
+                    f.write("COMLIBS += " + pvIncFlags + "\n")
+                pvLdFlags = self.getLdFlags(packVer)
+                if "" != pvLdFlags:
+                    f.write("#" + packVer.name + ":" + packVer.version + " LDFLAGS\n")
+                    f.write("LD_FLAGS += " + pvLdFlags + "\n")
+    
+    def addPackage(self, packVers, packVer):
+        if self.checkForPackVer(packVer):
+            pack = self.package(packVer.name)
+            for dep in pack.versions_[packVer.version].depends_:
+                self.addPackage(packVers, dep)
+            found = False
+            for otherPackVer in packVers:
+                if otherPackVer.name == packVer.name:
+                    if otherPackVer.version != packVer.version:
+                        raise Exception("Version conflict for " + packVer.name + " already have " + otherPackVer.version + " and adding: " + packVer.version)
+                    else:
+                        found = True
+            if not found:
+                packVers.append(packVer)
+            
+                
+                
     def isInstalled(self, packVer):
         if os.path.exists(os.path.join(self.dirMaster_.install_dir, joinNameVer(packVer))):
             return True
@@ -610,13 +662,24 @@ class Packages():
             ret = ret + "-headerpad_max_install_names" 
         return ret
 
-    def __bibProjectBuildCmd(self):
+    def __bibProjectBuildCmdOld(self):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install"""
         cmd = " ".join(cmd.split())
         return cmd
+    
+    def __bibProjectBuildCmd(self):
+        cmd = """
+        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) 
+        && python ./setup.py --compfile compfile.mk --numCores {num_cores} --outMakefile makefile-common.mk --overWrite
+        && make clean
+        && make -j {num_cores} && make install"""
+        cmd = " ".join(cmd.split())
+        return cmd
+    
+    
     
 class Setup:
     def __init__(self, args):
@@ -708,7 +771,7 @@ class Setup:
             inLibs = self.args.libs.split(",")
             for lib in inLibs:
                 if ":" not in lib.lower():
-                    self.setUpsNeeded[lib.lower()] = ""
+                    raise Exception("Need to give version for " + lib)
                 else:
                     libSplit = lib.split(":")
                     self.setUpsNeeded[libSplit[0].lower()] = libSplit[1]
@@ -762,8 +825,10 @@ class Setup:
         args = self.parseCompFile(fn)
         if 'CC' in args:
             self.CC = args['CC']
+            self.args.CC = self.CC
         if 'CXX' in args:
             self.CXX = args['CXX']
+            self.args.CXX = self.CXX
     
     def rmDirsForLibs(self,libs):
         for l in libs:
@@ -777,10 +842,10 @@ class Setup:
             if not pack.hasVersion(packVer.version):
                 raise Exception("No version " + str(packVer.version) + " for " + str(packVer.name))
             p = pack.versions_[packVer.version].bPaths_
-            if p.build_dir:
+            if os.path.exists(p.build_dir):
                 print "Removing " + CT.boldBlack(p.build_dir)
                 Utils.rm_rf(p.build_dir)
-            if p.local_dir:
+            if os.path.exists(p.local_dir):
                 print "Removing " + CT.boldBlack(p.local_dir)
                 Utils.rm_rf(p.local_dir)
     
@@ -794,9 +859,9 @@ class Setup:
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
         bPath = pack.versions_[version].bPaths_
         if os.path.exists(bPath.local_dir):
-            print name, CT.boldGreen("found at ") + CT.boldBlack(bPath.local_dir)
+            print name + ":" + version, CT.boldGreen("found at ") + CT.boldBlack(bPath.local_dir)
         else:
-            print name, CT.boldRed("NOT"), "found; building..."
+            print name + ":" + version, CT.boldRed("NOT"), "found; building..."
             try:
                 self.setUps[name](version)
                 self.installed.append(name)
@@ -848,7 +913,7 @@ class Setup:
                 print "failed to clone from {url}".format(url=bPath.url)
                 sys.exit(1)
         try:
-            Utils.run_in_dir(cmd, bPath.build_dir)
+            Utils.run_in_dir(cmd, bPath.build_sub_dir)
         except:
             print("Failed to build, removing {d}".format(d = bPath.local_dir))
             Utils.rm_rf(bPath.local_dir)
@@ -857,7 +922,7 @@ class Setup:
     def __buildFromGitTag(self, bPath, cmd, tagName):
         if os.path.exists(bPath.build_sub_dir):
             print "pulling from {url}".format(url=bPath.url)
-            pCmd = "git checkout origin/master && git pull && git checkout " + tagName
+            pCmd = "git checkout master && git pull && git checkout " + tagName
             try:
                 Utils.run_in_dir(pCmd, bPath.build_sub_dir)
             except Exception, e:
@@ -904,25 +969,64 @@ class Setup:
             print "failed to clone from {url}".format(url=bPath.url)
             sys.exit(1)
     
-    def __defaultBuild(self, package, version):
+    def __defaultBuild(self, package, version, fromGitTag = True):
         pack = self.__package(package)
         if not pack.hasVersion(version):
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         bPaths = pack.versions_[version].bPaths_
-        cmd = pack.defaultBuildCmd_.format(build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        cmd = pack.defaultBuildCmd_.format(external = shellquote(self.dirMaster_.base_dir), build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd:
             print cmd
         if "git" == pack.libType_:
             Utils.mkdir(bPaths.build_dir)
-            self.__buildFromGitTag(bPaths, cmd, version)
+            if fromGitTag:
+                self.__buildFromGitTag(bPaths, cmd, version)
+            else:
+                self.__buildFromGitBranch(bPaths, cmd, version)
         elif "git-headeronly" == pack.libType_:
-            self.__gitTag(bPaths, version)
+            if fromGitTag:
+                self.__gitTag(bPaths, version)
+            else:
+                self.__gitBranch(bPaths, version)
         elif "file" == pack.libType_:
             Utils.mkdir(bPaths.build_dir)
             self.__buildFromFile(bPaths, cmd)
         else:
             raise Exception("Unrecognized lib type " + str(pack.libType_))
+        
+    def __defaultBibBuild(self, package, version):
+        if "develop" == version:
+            self.__defaultBuild(package, version, False)
+        else:
+            self.__defaultBuild(package, version, True)
+        
+    def updateBibProjects(self,bibProjects):
+        inLibs = bibProjects.split(",")
+        for lib in inLibs:
+            if ":" not in lib.lower():
+                raise Exception("Need to give version for " + lib)
+            else:
+                libSplit = lib.split(":")
+                self.setUpsNeeded[libSplit[0].lower()] = libSplit[1]
+        for set in self.setUpsNeeded.keys():
+            self.packages_.checkForPackVer(LibNameVer(set, self.setUpsNeeded[set]))
+            pack = self.__package(set)
+            bPaths = pack.versions_[self.setUpsNeeded[set]].bPaths_
+            if os.path.exists(bPaths.local_dir):
+                print "Removing " + CT.boldBlack(bPaths.local_dir)
+                Utils.rm_rf(bPaths.local_dir)
+        for set in self.setUpsNeeded.keys():
+            pack = self.__package(set)
+            bPath = pack.versions_[self.setUpsNeeded[set]].bPaths_
+            if os.path.exists(os.path.join(bPath.build_dir,set, "makefile-common.mk")):
+                os.remove(os.path.join(bPath.build_dir,set, "makefile-common.mk"))
+            self.__setup(set, self.setUpsNeeded[set])
+        for p in self.installed:
+            print p, CT.boldGreen("installed")
+
+        for p in self.failedInstall:
+            print  p, CT.boldRed("failed to install")
         
     
     def installRPackageSource(self,version, sourceFile):
@@ -965,31 +1069,31 @@ class Setup:
         self.__defaultBuild("bamtools", version)
 
     def bibcpp(self, version):
-        self.__defaultBuild("bibcpp", version)
+        self.__defaultBibBuild("bibcpp", version)
 
     def bibseq(self, version):
-        self.__defaultBuild("bibseq", version)
+        self.__defaultBibBuild("bibseq", version)
         
     def twobit(self, version):
-        self.__defaultBuild("twobit", version)
+        self.__defaultBibBuild("twobit", version)
             
     def sharedMutex(self, version):
-        self.__defaultBuild("sharedmutex", version)
+        self.__defaultBibBuild("sharedmutex", version)
     
     def bibseqDev(self, version):
-        self.__defaultBuild("bibseqdev", version)
+        self.__defaultBibBuild("bibseqdev", version)
         
     def SeekDeep(self, version):
-        self.__defaultBuild("seekdeep", version)
+        self.__defaultBibBuild("seekdeep", version)
     
     def SeekDeepDev(self, version):
-        self.__defaultBuild("seekdeepdev", version)
+        self.__defaultBibBuild("seekdeepdev", version)
         
     def seqserver(self, version):
-        self.__defaultBuild("seqserver", version)
+        self.__defaultBibBuild("seqserver", version)
         
     def njhRInside(self, version):
-        self.__defaultBuild("njhrinside", version)
+        self.__defaultBibBuild("njhrinside", version)
         
     def cppprogutils(self, version):
         self.__defaultBuild("cppprogutils", version)
@@ -1039,6 +1143,35 @@ class Setup:
     def catch(self, version):
         self.__defaultBuild("catch", version)
 
+    def externalChecks(self):
+        ccWhich = Utils.which(self.CC)
+        cxxWhich = Utils.which(self.CXX)
+        cmakeWhich = Utils.which("cmake")
+        if not ccWhich or not cxxWhich or not cmakeWhich:
+            if not ccWhich:
+                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
+                if self.args.compfile:
+                    print "Change CC in " + self.args.compfile
+                else:
+                    print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
+                print ""
+            if not cxxWhich:
+                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX)
+                if self.args.compfile:
+                    print "Change CXX in " + self.args.compfile
+                else:
+                    print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
+                print ""
+            if not cmakeWhich:
+                print CT.boldRed("Could not find " + CT.purple + "cmake")
+                if Utils.isMac():
+                    print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+                else:
+                    print "On ubuntu to install latest cmake do the following"
+                    print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
+                    print "sudo apt-get update"
+                    print "sudo apt-get install cmake"
+            raise Exception("")
 
 def ubuntu(self):
         pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
@@ -1059,59 +1192,36 @@ def parse_args():
     parser.add_argument('--instRPackageSource',type=str, nargs=1) 
     parser.add_argument('--addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
     parser.add_argument('--numCores', type=str)
+    parser.add_argument('--outMakefile', type=str)
+    parser.add_argument('--overWrite', action = 'store_true')
     return parser.parse_args()
+
+
 
 def main():
     args = parse_args()
     s = Setup(args)
-    ccWhich = Utils.which(s.CC)
-    cxxWhich = Utils.which(s.CXX)
-    cmakeWhich = Utils.which("cmake")
-    if not ccWhich or not cxxWhich or not cmakeWhich:
-        if not ccWhich:
-            print CT.boldRed("Could not find c compiler " + CT.purple + s.CC)
-            if args.compfile:
-                print "Change CC in " + args.compfile
-            else:
-                print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
-            print ""
-        if not cxxWhich:
-            print CT.boldRed("Could not find c++ compiler " + CT.purple + s.CXX)
-            if args.compfile:
-                print "Change CXX in " + args.compfile
-            else:
-                print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
-            print ""
-        if not cmakeWhich:
-            print CT.boldRed("Could not find " + CT.purple + "cmake")
-            if Utils.isMac():
-                print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
-            else:
-                print "On ubuntu to install latest cmake do the following"
-                print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
-                print "sudo apt-get update"
-                print "sudo apt-get install cmake"
-        return 1
-        
-    
+    s.externalChecks()
     if(args.instRPackageName):
-        s.installRPackageName(args.instRPackageName[0])
+        s.installRPackageName(args.instRPackageName[0], s.packages_["r"].defaultVersion_)
         return 0
     if(args.instRPackageSource):
-        s.installRPackageSource(args.instRPackageSource[0])
+        s.installRPackageSource(args.instRPackageSource[0], s.packages_["r"].defaultVersion_)
         return 0
     if args.updateBibProjects:
-        projectsSplit = args.updateBibProjects.split(",")
-        s.updateBibProjects(projectsSplit)
+        s.updateBibProjects(args.updateBibProjects)
         return 0
     if args.printLibs:
         s.printAvailableSetUps()
     elif args.addBashCompletion:
         if(os.path.isdir("./bashCompletes")):
-            cmd = "cat bashCompletes/* >> ~/.bash_completion"
+            cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
             Utils.run(cmd)
         if(os.path.isdir("./bash_completion.d")):
-            cmd = "cat bash_completion.d/* >> ~/.bash_completion"
+            cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
+            Utils.run(cmd)
+        if(os.path.isdir("./etc/bash_completion.d")):
+            cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
             Utils.run(cmd)
     else:
         if len(s.setUpsNeeded) == 0:
@@ -1119,6 +1229,11 @@ def main():
             return 1
         else:
             s.setup()
+            if args.outMakefile:
+                packVers = []
+                for set in s.setUpsNeeded.keys():
+                    s.packages_.addPackage(packVers,LibNameVer(set, s.setUpsNeeded[set]))
+                s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite)
             return 0
 
 if __name__ == '__main__':
