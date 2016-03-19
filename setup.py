@@ -17,6 +17,20 @@ from color_text import ColorText as CT
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
 
 
+def fixDyLibOnMac(libDir):
+    files = os.listdir(libDir)
+    for file in files:
+        fullFile = os.path.join(libDir, file)
+        if os.path.isfile(fullFile) and str(fullFile).endswith(".dylib"):
+            try:
+                cmd = "install_name_tool -id {full_libpath} {full_libpath}".format(full_libpath = os.path.abspath(fullFile))
+                Utils.run(cmd)
+            except Exception,e:
+                print (e)
+                print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
+        elif os.path.isdir(fullFile):
+            fixDyLibOnMac(fullFile)
+
 def runAndCapture(cmd):
     # print CT.boldRed("before process")
     # from http://stackoverflow.com/a/4418193
@@ -84,7 +98,7 @@ class CPPLibPackageVersionR():
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "R.framework/Resources/bin/R")
         else:
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "bin/R")
-        self.rHome_ = runAndCapture(self.rExecutable_ + " RHOME")
+        self.rHome_ = str(runAndCapture(self.rExecutable_ + " RHOME")).strip()
     
     def getIncludeFlags(self, localPath):
         self.setExecutableLoc(localPath)
@@ -327,11 +341,10 @@ class Packages():
         rHomeLoc = "bin/R RHOME"
         if Utils.isMac():
             rHomeLoc = "R.framework/Resources/bin/R RHOME"
-        #'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
         buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                 && make -j {num_cores}
                 && make install
-                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
@@ -452,8 +465,8 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
         pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac():
-            pack.versions_["develop"].depends_.append(LibNameVer("sharedMutex", "v0.1"))
+        if Utils.isMac() and not "gcc" in self.args.CC:
+            pack.versions_["develop"].depends_.append(LibNameVer("sharedmutex", "develop"))
         pack.addVersion(url, "2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["2.2.1"].additionalLdFlags_ = ["-lcurl"] 
         return pack
@@ -465,8 +478,8 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["master"].additionalLdFlags_ = ["-lcurl"]
-        if Utils.isMac():
-            pack.versions_["master"].depends_.append(LibNameVer("sharedMutex", "v0.1"))
+        if Utils.isMac() and not "gcc" in self.args.CC:
+            pack.versions_["master"].depends_.append(LibNameVer("sharedmutex", "develop"))
         return pack 
     
     def __twobit(self):
@@ -509,7 +522,7 @@ class Packages():
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("cppcms", "1.0.5")])
+        pack.addVersion(url, "develop",[LibNameVer("bibseqdev", "master"),LibNameVer("cppcms", "1.0.5")])
         pack.addVersion(url, "1.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("cppcms", "1.0.5")])
         return pack
     
@@ -602,7 +615,7 @@ class Packages():
     
     def checkForPackVer(self, packVer):
         if packVer.name not in self.packages_:
-            raise Exception("Lib " + packVer.name + " not found in libs, options are " + ", ".join(self.getLibNames()))
+            raise Exception("Lib " + packVer.name + " not found in libs, options are " + ", ".join(self.getPackagesNames()))
         else:
             if packVer.version not in self.packages_[packVer.name].versions_:
                 raise Exception("Version " + packVer.version + " for lib " \
@@ -1006,6 +1019,10 @@ class Setup:
             self.__buildFromFile(bPaths, cmd)
         else:
             raise Exception("Unrecognized lib type " + str(pack.libType_))
+        if Utils.isMac():
+            libPath = os.path.join(bPaths.local_dir, "lib")
+            if(os.path.exists(libPath)):
+                fixDyLibOnMac(libPath)
         
     def __defaultBibBuild(self, package, version):
         if "develop" == version:
