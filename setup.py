@@ -258,6 +258,7 @@ class Packages():
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "master")
         pack.addHeaderOnlyVersion(url, "master")
+        pack.versions_["master"].includePath_ = os.path.join(name, "master", name)
         if not Utils.isMac():
             pack.versions_["master"].additionalLdFlags_ = ["-lrt"]
         return pack
