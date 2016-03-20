@@ -1102,7 +1102,8 @@ class Setup:
                 raise Exception("Need to give version for " + lib)
             else:
                 libSplit = lib.split(":")
-                self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(),libSplit[1]))
+                #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(),libSplit[1]))
+                self.setUpsNeeded.append(LibNameVer(libSplit[0].lower(),libSplit[1]))
         for set in self.setUpsNeeded:
             self.packages_.checkForPackVer(set)
             pack = self.__package(set.name)
