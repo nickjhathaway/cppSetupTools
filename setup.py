@@ -545,7 +545,7 @@ class Packages():
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
-        pack.addVersion(url, "develop",[LibNameVer("r", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+        pack.addVersion(url, "develop",[LibNameVer("r", "3.2.4"),LibNameVer("cppitertools", "v0.1")])
         pack.addVersion(url, "1.1.1", [LibNameVer("r", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
         return pack
     
