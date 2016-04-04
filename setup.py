@@ -313,21 +313,28 @@ class Packages():
         pack.versions_["1.3.3"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
         if not Utils.isMac():
             pack.versions_["1.3.3"].additionalLdFlags_.append("-lrt") 
+        pack.addVersion(url, "1.3.4")
+        pack.versions_["1.3.4"].additionalIncludePaths_.append(pack.versions_["1.3.4"].includePath_ + "/libmongoc-1.0")
+        pack.versions_["1.3.4"].includePath_ = pack.versions_["1.3.4"].includePath_ + "/libbson-1.0"
+        pack.versions_["1.3.4"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        pack.versions_["1.3.4"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
+        if not Utils.isMac():
+            pack.versions_["1.3.4"].additionalLdFlags_.append("-lrt") 
         return pack
     
     def __mongocxx(self):
         url = "https://github.com/mongodb/mongo-cxx-driver.git"
         name = "mongocxx"
-        buildCmd = "cd build && PKG_CONFIG_PATH=/Users/nick/testing/testingSetUpAgain/external/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig/:PKG_CONFIG_PATH CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "07d4243445b5f0f333bf0ee9b3f482e74adf67a4")
+        buildCmd = "cd build && PKG_CONFIG_PATH={external}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig/:PKG_CONFIG_PATH CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "r3.0.1")
         pack.addVersion(url, "r3.0.0", [LibNameVer("mongoc", "1.3.3")])
         pack.versions_["r3.0.0"].additionalIncludePaths_.append(pack.versions_["r3.0.0"].includePath_ + "/mongocxx/v_noabi")
         pack.versions_["r3.0.0"].includePath_ = pack.versions_["r3.0.0"].includePath_ + "/bsoncxx/v_noabi"
         pack.versions_["r3.0.0"].additionalLdFlags_ = ["-lbsoncxx"] 
-        pack.addVersion(url, "07d4243445b5f0f333bf0ee9b3f482e74adf67a4", [LibNameVer("mongoc", "1.3.3")])
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].additionalIncludePaths_.append(pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ + "/mongocxx/v_noabi")
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ = pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ + "/bsoncxx/v_noabi"
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].additionalLdFlags_ = ["-lbsoncxx"] 
+        pack.addVersion(url, "r3.0.1", [LibNameVer("mongoc", "1.3.4")])
+        pack.versions_["r3.0.1"].additionalIncludePaths_.append(pack.versions_["r3.0.1"].includePath_ + "/mongocxx/v_noabi")
+        pack.versions_["r3.0.1"].includePath_ = pack.versions_["r3.0.1"].includePath_ + "/bsoncxx/v_noabi"
+        pack.versions_["r3.0.1"].additionalLdFlags_ = ["-lbsoncxx"]
         return pack
 
     def __cppitertools(self):
