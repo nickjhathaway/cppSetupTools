@@ -10,46 +10,12 @@ from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
 
+#tuples
 
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
+LibNameVer = namedtuple("LibNameVer", 'name version')
+GitRefs = namedtuple("GitRefs", "branches tags")
 
-
-def fixDyLibOnMac(libDir):
-    """
-        If a dynamic library's id isn't it's full path name and it isn't in the
-         dylib search path it won't be linked in properly, so will modify the id
-         of the libraries to be it's full name 
-    """
-    files = os.listdir(libDir)
-    for file in files:
-        fullFile = os.path.join(libDir, file)
-        if os.path.isfile(fullFile) and str(fullFile).endswith(".dylib"):
-            try:
-                cmd = "install_name_tool -id {full_libpath} {full_libpath}".format(full_libpath = os.path.abspath(fullFile))
-                Utils.run(cmd)
-            except Exception,e:
-                print (e)
-                print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
-        elif os.path.isdir(fullFile):
-            fixDyLibOnMac(fullFile)
-
-def runAndCapture(cmd):
-    # from http://stackoverflow.com/a/4418193
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    # Poll process for new output until finished
-    actualOutput = ""
-    while True:
-        nextline = process.stdout.readline()
-        if nextline == '' and process.poll() != None:
-            break
-        actualOutput = actualOutput + nextline
-    #this is suppose to capture the output but it isn't for some reason so capturing it with the above
-    output = process.communicate()[0]
-    exitCode = process.returncode
-    if (exitCode == 0):
-        return actualOutput
-        #return output
-    raise Exception(cmd, exitCode, output)
 
 class LibDirMaster():
     def __init__(self,externalLoc):
@@ -62,14 +28,6 @@ class LibDirMaster():
         Utils.mkdir(self.ext_tars) #tar storage directory
         Utils.mkdir(self.ext_build) #build directory
         Utils.mkdir(self.install_dir) #local directory
-
-def shellquote(s):
-    # from http://stackoverflow.com/a/35857
-    return "'" + s.replace("'", "'\\''") + "'"
-
-
-LibNameVer = namedtuple("LibNameVer", 'name version')
-
 
 def joinNameVer(libNameVerTup):
     return os.path.join(libNameVerTup.name, libNameVerTup.version, libNameVerTup.name)
@@ -95,25 +53,25 @@ class CPPLibPackageVersionR():
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "R.framework/Resources/bin/R")
         else:
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "bin/R")
-        self.rHome_ = str(runAndCapture(self.rExecutable_ + " RHOME")).strip()
+        self.rHome_ = str(Utils.runAndCapture(self.rExecutable_ + " RHOME")).strip()
     
     def getIncludeFlags(self, localPath):
         self.setExecutableLoc(localPath)
         ret = "-DSTRICT_R_HEADERS"
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config --cppflags")
-        ret = ret + " " + runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config --cppflags")
+        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
         
     def getLdFlags(self, localPath):
         self.setExecutableLoc(localPath)
         ret = ""
-        ret = ret + runAndCapture(self.rExecutable_ + " CMD config --ldflags")
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
+        ret = ret + Utils.runAndCapture(self.rExecutable_ + " CMD config --ldflags")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
         ret = ret + " " + "-Wl,-rpath," + self.rHome_ + "/lib"
-        ret = ret + " " + runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
     
     def getDownloadUrl(self):
@@ -209,8 +167,24 @@ class CPPLibPackage():
     
     def getVersions(self):
         return sorted(self.versions_.keys())
-        
-
+    
+    def getGitRefs(self, url):
+        if self.libType_.beginswith("git"):
+            cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+            branches = []
+            tags = []
+            for line in cap.split("\n"):
+                if "" != line:
+                    lineSplit = line.split()
+                    if 2 == len(lineSplit):
+                        if "heads" in lineSplit[1]:
+                            branches.append(os.path.basename(lineSplit[1]))
+                        elif "tags" in lineSplit[1] and not lineSplit[1].endswith("^{}"):
+                            tags.append(os.path.basename(lineSplit[1]))
+            gRefs = GitRefs(branches, tags)
+            return (gRefs)
+        else:
+            raise Exception("Library " + self.name_ + " is not a git library, type is : " + self.libType_)
 
 class Packages():
     '''class to hold and setup all the necessary paths for 
@@ -388,8 +362,8 @@ class Packages():
     '''
     def __mlpack(self):
         url = "http://www.mlpack.org/files/mlpack-1.0.8.tar.gz"
-        armadillo_dir = shellquote(i.local_dir).replace("mlpack", "armadillo")
-        boost_dir = shellquote(i.local_dir).replace("mlpack", "boost")
+        armadillo_dir = Utils.shellquote(i.local_dir).replace("mlpack", "armadillo")
+        boost_dir = Utils.shellquote(i.local_dir).replace("mlpack", "boost")
         cmd = """
         mkdir -p build
         && cd build
@@ -399,7 +373,7 @@ class Packages():
          -D CMAKE_INSTALL_PREFIX:PATH={local_dir} ..
          -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR={boost}/include/ -DBOOST_LIBRARYDIR={boost}/lib/
         && make -j {num_cores} install
-        """.format(local_dir=shellquote(i.local_dir),
+        """.format(local_dir=Utils.shellquote(i.local_dir),
            armadillo_dir=armadillo_dir,
            num_cores=self.num_cores(),
            boost=boost_dir, CC=self.CC, CXX=self.CXX)
@@ -417,7 +391,7 @@ class Packages():
             make lib &&
             cp linear.h liblinear.so.1 README {local_dir} &&
             ln -s {local_dir}/liblinear.so.1 {local_dir}/liblinear.so
-            """.format(local_dir=shellquote(i.local_dir))
+            """.format(local_dir=Utils.shellquote(i.local_dir))
         cmd = " ".join(cmd.split())
         return self.__package_dirs(url, "liblinear")
     '''
@@ -1088,7 +1062,7 @@ class Setup:
             untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
             os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
         else:
-            cmd = "git clone {url} {d}".format(url=bPath.url, d=shellquote(bPath.local_dir))
+            cmd = "git clone {url} {d}".format(url=bPath.url, d=Utils.shellquote(bPath.local_dir))
             tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
             try:
                 Utils.run(cmd)
@@ -1103,7 +1077,7 @@ class Setup:
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         packVer = pack.versions_[version]
         bPaths = packVer.bPaths_
-        cmd = pack.defaultBuildCmd_.format(external = shellquote(self.dirMaster_.base_dir), build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        cmd = pack.defaultBuildCmd_.format(external = Utils.shellquote(self.dirMaster_.base_dir), build_sub_dir = Utils.shellquote(bPaths.build_sub_dir), local_dir=Utils.shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd and self.args.verbose:
             print cmd
@@ -1126,7 +1100,7 @@ class Setup:
         if Utils.isMac():
             libPath = os.path.join(bPaths.local_dir, "lib")
             if(os.path.exists(libPath)):
-                fixDyLibOnMac(libPath)
+                Utils.fixDyLibOnMac(libPath)
         
     def __defaultBibBuild(self, package, version):
         if "develop" == version or "release" in version:
@@ -1173,7 +1147,7 @@ class Setup:
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -1188,7 +1162,7 @@ class Setup:
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -1245,7 +1219,7 @@ class Setup:
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         packVer = pack.versions_[version]
         bPaths = packVer.bPaths_
-        pack.defaultBuildCmd_ = pack.defaultBuildCmd_.format(mongoc_ver = packVer.depends_[0].version,external = self.dirMaster_.base_dir, build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        pack.defaultBuildCmd_ = pack.defaultBuildCmd_.format(mongoc_ver = packVer.depends_[0].version,external = self.dirMaster_.base_dir, build_sub_dir = Utils.shellquote(bPaths.build_sub_dir), local_dir=Utils.shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         self.__defaultBuild("mongocxx", version)
     
     def cppcms(self, version):
