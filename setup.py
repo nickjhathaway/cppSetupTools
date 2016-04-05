@@ -465,20 +465,14 @@ class Packages():
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.addVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["develop"].depends_.append(LibNameVer("sharedmutex", "develop"))
         
-        pack.addVersion(url, "v2.3.0",[LibNameVer("bibcpp", "v2.3.0"),LibNameVer("twobit", "v2.0.0"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.addVersion(url, "v2.3.0")
         pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["v2.3.0"].depends_.append(LibNameVer("sharedmutex", "v0.2"))
-            
-        pack.addVersion(url, "v2.3.1",[LibNameVer("bibcpp", "v2.3.1"),LibNameVer("twobit", "v2.0.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        
+        pack.addVersion(url, "v2.3.1")
         pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["v2.3.1"].depends_.append(LibNameVer("sharedmutex", "v0.3"))
         return pack
     
     def __bibseqDev(self):
@@ -486,10 +480,8 @@ class Packages():
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.addVersion(url, "master")
         pack.versions_["master"].additionalLdFlags_ = ["-lcurl"]
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["master"].depends_.append(LibNameVer("sharedmutex", "develop"))
         return pack 
     
     def __twobit(self):
@@ -497,9 +489,9 @@ class Packages():
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
-        pack.addVersion(url, "develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
-        pack.addVersion(url, "v2.0.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
-        pack.addVersion(url, "v2.0.1",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
+        pack.addVersion(url, "develop")
+        pack.addVersion(url, "v2.0.0")
+        pack.addVersion(url, "v2.0.1")
         return pack
     
     def __sharedMutex(self):
@@ -517,10 +509,10 @@ class Packages():
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
-        pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
-        pack.addVersion(url, "v2.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
-        pack.addVersion(url, "v2.3.2",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
+        pack.addVersion(url, "develop")
+        pack.addVersion(url, "v2.3.0")
+        pack.addVersion(url, "v2.3.1")
+        pack.addVersion(url, "v2.3.2")
         return pack
     
     def __SeekDeepDev(self):
@@ -528,7 +520,7 @@ class Packages():
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master", [LibNameVer("bibseqDev", "master"),LibNameVer("seqServer", "develop")])
+        pack.addVersion(url, "master")
         return pack
     
     def __seqserver(self):
@@ -536,9 +528,9 @@ class Packages():
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibseqdev", "master"),LibNameVer("cppcms", "1.0.5")])
-        pack.addVersion(url, "v1.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("cppcms", "1.0.5")])
-        pack.addVersion(url, "v1.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("cppcms", "1.0.5")])
+        pack.addVersion(url, "develop")
+        pack.addVersion(url, "v1.3.0")
+        pack.addVersion(url, "v1.3.1")
         return pack
     
     def __njhRInside(self):
@@ -546,8 +538,8 @@ class Packages():
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
-        pack.addVersion(url, "develop",[LibNameVer("r", "3.2.4"),LibNameVer("cppitertools", "v0.1")])
-        pack.addVersion(url, "1.1.1", [LibNameVer("r", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+        pack.addVersion(url, "develop")
+        pack.addVersion(url, "1.1.1")
         return pack
     
     def __bibcpp(self):
@@ -555,17 +547,17 @@ class Packages():
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.addVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["develop"].additionalLdFlags_.append("-lrt")
             
-        pack.addVersion(url, "v2.3.0",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.addVersion(url, "v2.3.0")
         pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["v2.3.0"].additionalLdFlags_.append("-lrt")
             
-        pack.addVersion(url, "v2.3.1",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.addVersion(url, "v2.3.1")
         pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["v2.3.1"].additionalLdFlags_.append("-lrt")
