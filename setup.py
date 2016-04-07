@@ -705,6 +705,12 @@ class Packages():
                 f.write("#Default LDFLAGS\n")
                 f.write("LD_FLAGS += " + dLdFlags + "\n")
             for packVer in packVers:
+                pack = self.package(packVer.name)
+                #if bib project, add the flags of it's dependencies
+                if pack.bibProject_:
+                        cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                        dir = pack.getBuildSubDir(packVer.version)
+                        Utils.run_in_dir(cmd, dir)
                 pvIncFlags = self.getIncludeFlags(packVer)
                 if "" != pvIncFlags:
                     f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")

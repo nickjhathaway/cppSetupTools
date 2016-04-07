@@ -60,19 +60,21 @@ class Utils:
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         #print CT.boldRed("after process")
         # Poll process for new output until finished
+        actualOutput = ""
         while True:
             nextline = process.stdout.readline()
             if nextline == '' and process.poll() != None:
                 break
             sys.stdout.write(nextline)
+            actualOutput = actualOutput + nextline
             sys.stdout.flush()
 
         output = process.communicate()[0]
         exitCode = process.returncode
         #print "exit code "  + CT.boldRed(str(exitCode))
         if (exitCode == 0):
-            return output
-        raise Exception(cmd, exitCode, output)
+            return actualOutput
+        raise Exception(cmd, exitCode, actualOutput)
 
     @staticmethod
     def runAndCapture(cmd):
