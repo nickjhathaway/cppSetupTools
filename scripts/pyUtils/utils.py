@@ -181,7 +181,7 @@ class Utils:
                     print (e)
                     print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
             elif os.path.isdir(fullFile):
-                fixDyLibOnMac(fullFile)
+                Utils.fixDyLibOnMac(fullFile)
 
     
             

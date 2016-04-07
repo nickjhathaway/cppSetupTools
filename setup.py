@@ -141,7 +141,8 @@ class CPPLibPackage():
         self.externalLibDir_ = dirMaster
         if "git" != libType and "file" != libType and "git-headeronly" != libType:
             raise Exception("libType should be 'git', 'git-headeronly', or 'file', not " + str(libType))
-        self.libType_ = libType #should be git or file
+        self.libType_ = libType #should be git, git-headeronly, or file
+        self.bibProject_ = False
     
     def addVersion(self, url, verName, depends=[]):
         verName = verName.replace("/", "__")
@@ -167,6 +168,24 @@ class CPPLibPackage():
     
     def getVersions(self):
         return sorted(self.versions_.keys())
+    
+    def getLocalDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.local_dir
+        else:
+            raise Exception("Error in getLocalDir" + self.name_ + " doesn't have version " + str(version))
+    
+    def getBuildSubDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.build_sub_dir
+        else:
+            raise Exception("Error in getBuildSubDir" + self.name_ + " doesn't have version " + str(version))
+    
+    def getBuildDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.build_dir
+        else:
+            raise Exception("Error in getBuildDir" + self.name_ + " doesn't have version " + str(version))
     
     def getGitRefs(self, url):
         if self.libType_.beginswith("git"):
@@ -449,6 +468,7 @@ class Packages():
         name = "cppprogutils"
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v2.0.0")
+        pack.bibProject_ = True
         pack.addHeaderOnlyVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
         pack.versions_["develop"].includePath_ = os.path.join(name, "develop", name)
@@ -458,6 +478,7 @@ class Packages():
         pack.addHeaderOnlyVersion(url, "v2.0.0")
         pack.versions_["v2.0.0"].additionalLdFlags_ = ["-lpthread"]
         pack.versions_["v2.0.0"].includePath_ = os.path.join(name, "v2.0.0", name)
+        
         return pack
     
     def __bibseq(self):
@@ -465,6 +486,7 @@ class Packages():
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
         
@@ -480,6 +502,7 @@ class Packages():
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
+        pack.bibProject_ = True
         pack.addVersion(url, "master")
         pack.versions_["master"].additionalLdFlags_ = ["-lcurl"]
         return pack 
@@ -489,6 +512,7 @@ class Packages():
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v2.0.0")
         pack.addVersion(url, "v2.0.1")
@@ -499,6 +523,7 @@ class Packages():
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v0.2")
         pack.addVersion(url, "v0.3")
@@ -509,6 +534,7 @@ class Packages():
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.1")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v2.3.0")
         pack.addVersion(url, "v2.3.1")
@@ -520,6 +546,7 @@ class Packages():
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
+        pack.bibProject_ = True
         pack.addVersion(url, "master")
         return pack
     
@@ -528,6 +555,7 @@ class Packages():
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v1.3.0")
         pack.addVersion(url, "v1.3.1")
@@ -538,6 +566,7 @@ class Packages():
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.addVersion(url, "1.1.1")
         return pack
@@ -547,6 +576,7 @@ class Packages():
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
+        pack.bibProject_ = True
         pack.addVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
@@ -644,9 +674,26 @@ class Packages():
         self.checkForPackVer(packVer)
         return self.packages_[packVer.name].versions_[packVer.version].getIncludeFlags(self.dirMaster_.install_dir)
     
-    def writeMakefile(self, packVers, filename, overwrite = False):
-        if os.path.exists(filename) and not overwrite:
+    def writeMakefile(self, packVers, filename, overwrite = False, append = False):
+        if os.path.exists(filename) and not overwrite and not append:
             raise Exception("File: " + str(filename) + " already exists, use --overWrite to overwrite it")
+        elif os.path.exists(filename) and append:
+            with open(filename, "a") as f:
+                for packVer in packVers:
+                    pack = self.package(packVer.name)
+                    #if bib project, add the flags of it's dependencies
+                    if pack.bibProject_:
+                        cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                        dir = pack.getBuildSubDir(packVer.version)
+                        Utils.run_in_dir(cmd, dir)
+                    pvIncFlags = self.getIncludeFlags(packVer)
+                    if "" != pvIncFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
+                        f.write("COMLIBS += " + pvIncFlags + "\n")
+                    pvLdFlags = self.getLdFlags(packVer)
+                    if "" != pvLdFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " LDFLAGS\n")
+                        f.write("LD_FLAGS += " + pvLdFlags + "\n")
         with open(filename, "w") as f:
             f.write("#Utils\n")
             f.write("# from http://stackoverflow.com/a/18258352\n")
@@ -941,6 +988,7 @@ class Setup:
         bPath = packVer.bPaths_
         if self.noInternet_:
             newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
+            print newUrl
             bPath = BuildPaths(newUrl, bPath.build_dir, bPath.build_sub_dir, bPath.local_dir)
             base_file = os.path.basename(bPath.url)
             fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, base_file)
@@ -964,36 +1012,36 @@ class Setup:
                 
     def __buildFromGitBranch(self, packVer, cmd):
         bPath = packVer.bPaths_
-        if os.path.exists(bPath.build_sub_dir):
-            print "pulling from {url}".format(url=bPath.url)
-            pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
-            try:
-                Utils.run_in_dir(pCmd, bPath.build_sub_dir)
-            except:
-                print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
-                sys.exit(1)
+        if self.noInternet_:
+            self.__buildFromFile(packVer, cmd)
         else:
-            print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+            if os.path.exists(bPath.build_sub_dir):
+                print "pulling from {url}".format(url=bPath.url)
+                pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
+                try:
+                    Utils.run_in_dir(pCmd, bPath.build_sub_dir)
+                except:
+                    print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
+                    sys.exit(1)
+            else:
+                print "cloning from {url}".format(url=bPath.url)
+                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+                try:
+                    Utils.run(cCmd)
+                except:
+                    print "failed to clone from {url}".format(url=bPath.url)
+                    sys.exit(1)
             try:
-                Utils.run(cCmd)
+                Utils.run_in_dir(cmd, bPath.build_sub_dir)
             except:
-                print "failed to clone from {url}".format(url=bPath.url)
+                print("Failed to build, removing {d}".format(d = bPath.local_dir))
+                Utils.rm_rf(bPath.local_dir)
                 sys.exit(1)
-        try:
-            Utils.run_in_dir(cmd, bPath.build_sub_dir)
-        except:
-            print("Failed to build, removing {d}".format(d = bPath.local_dir))
-            Utils.rm_rf(bPath.local_dir)
-            sys.exit(1)
     
     def __buildFromGitTag(self, packVer, cmd):
         bPath = packVer.bPaths_
         ##if no internet build from tar file, file needs to be in tarballs folder
         if self.noInternet_:
-            newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
-            newBPath = BuildPaths(newUrl, bPath.build_dir, bPath.build_sub_dir, bPath.local_dir)
-            packVer.bPath = newBPath
             self.__buildFromFile(packVer, cmd)
         else:
             if os.path.exists(bPath.build_sub_dir):
@@ -1016,27 +1064,35 @@ class Setup:
                     print e
                     print "failed to clone from {url}".format(url=bPath.url)
                     sys.exit(1)
-        try:
-            Utils.run_in_dir(cmd, bPath.build_sub_dir)
-        except Exception, e:
-            print e
-            print "failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
-            Utils.rm_rf(bPath.local_dir)
-            sys.exit(1)
+            try:
+                Utils.run_in_dir(cmd, bPath.build_sub_dir)
+            except Exception, e:
+                print e
+                print "failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
+                Utils.rm_rf(bPath.local_dir)
+                sys.exit(1)
     
     def __gitBranch(self, packVer):
         bPath = packVer.bPaths_
         '''
             For header only libraries, will be put directly into local
         '''
-        print "cloning from {url}".format(url=bPath.url)
-        cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
-        try:
-            Utils.run(cCmd)
-        except Exception, e:
-            print e
-            print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
-            sys.exit(1)
+        if self.noInternet_:
+            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, packVer.nameVer_.version)
+            Utils.clear_dir(os.path.dirname(bPath.local_dir))
+            Utils.untar(fnp, os.path.dirname(bPath.local_dir))
+            ## might not be the best way to do this but works for now
+            untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
+            os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
+        else:
+            print "cloning from {url}".format(url=bPath.url)
+            cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
+            try:
+                Utils.run(cCmd)
+            except Exception, e:
+                print e
+                print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
+                sys.exit(1)
     
     def __gitTag(self, packVer):
         bPath = packVer.bPaths_
@@ -1044,10 +1100,7 @@ class Setup:
             For header only libraries, will be put directly into local
         '''
         if self.noInternet_:
-            newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
-            fn = os.path.basename(newUrl)
-            fn_noex = fn.replace(".tar.gz", "")
-            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, fn)
+            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, packVer.nameVer_.version)
             Utils.clear_dir(os.path.dirname(bPath.local_dir))
             Utils.untar(fnp, os.path.dirname(bPath.local_dir))
             ## might not be the best way to do this but works for now
@@ -1100,7 +1153,7 @@ class Setup:
         else:
             self.__defaultBuild(package, version, True)
         
-    def updateBibProjects(self,bibProjects):
+    def updateBibProjects(self, bibProjects):
         inLibs = bibProjects.split(",")
         for lib in inLibs:
             if ":" not in lib.lower():
@@ -1243,21 +1296,43 @@ class Setup:
         
     def downloadFiles(self):
         for set in self.setUpsNeeded:
+            topTempDir = os.path.join(self.dirMaster_.base_dir, "temp")
             self.packages_.checkForPackVer(set)
             pack = self.__package(set.name) 
-            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, pack.name_))
             packVer = pack.versions_[set.version]
-            url = packVer.getDownloadUrl()
-            dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
-            print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
-            fnp = Utils.get_file(url, dest)
+            downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
+            Utils.mkdir(downloadDir)
+            if pack.bibProject_:
+                downloadCmd = "python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+                Utils.mkdir(topTempDir)
+                packVer = pack.versions_[set.version]
+                tempDir = os.path.join(topTempDir, pack.name_)
+                cloneCmd = "git clone {url} {d}".format(url=packVer.bPaths_.url, d = tempDir)
+                tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
+                Utils.run(cloneCmd)
+                Utils.run_in_dir(tagCmd, tempDir)
+                Utils.run_in_dir(downloadCmd, tempDir)
+                if "develop" == set.version or set.version == "master":
+                    archiveCmd = "git archive --prefix={name}/ -o {downloadDir}/{version}.tar.gz HEAD".format(name = pack.name_, downloadDir = downloadDir, version = set.version)
+                    Utils.run_in_dir(archiveCmd, tempDir)
+                shutil.rmtree(tempDir)
+            if pack.bibProject_ and (set.version == "develop" or set.version == "master"):
+                pass
+            else:
+                url = packVer.getDownloadUrl()
+                dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
+                print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
+                fnp = Utils.get_file(url, dest)
+        if os.listdir(os.path.join(self.dirMaster_.base_dir, "temp")) == []:
+            shutil.rmtree(os.path.join(self.dirMaster_.base_dir, "temp"))
         print ("Now run \"./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --noInternet\" to build libraries")
 
     def externalChecks(self):
         ccWhich = Utils.which(self.CC)
         cxxWhich = Utils.which(self.CXX)
         cmakeWhich = Utils.which("cmake")
-        if not ccWhich or not cxxWhich or not cmakeWhich:
+        gitWhich = Utils.which("git")
+        if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
                 print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
                 if self.args.compfile:
@@ -1281,6 +1356,8 @@ class Setup:
                     print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
                     print "sudo apt-get update"
                     print "sudo apt-get install cmake"
+            if not gitWhich:
+                print "Can't find git"
             raise Exception("")
 
 def ubuntu(self):
@@ -1304,6 +1381,7 @@ def parse_args():
     parser.add_argument('--numCores', type=str)
     parser.add_argument('--outMakefile', type=str)
     parser.add_argument('--overWrite', action = 'store_true')
+    parser.add_argument('--append', action = 'store_true')
     parser.add_argument('--noInternet', action = 'store_true')
     parser.add_argument('--justDownload', action = 'store_true')
     parser.add_argument('--verbose', action = 'store_true')
@@ -1349,7 +1427,7 @@ def main():
                     packVers = []
                     for set in s.setUpsNeeded:
                         s.packages_.addPackage(packVers,set)
-                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite)
+                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
                 return 0
 
 if __name__ == '__main__':
