@@ -627,9 +627,8 @@ class Packages():
                 Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
                 with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                     pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
-        except Exception as inst:
-            print inst 
-            print CT.boldRed("failed to update cache for") + name
+        except Exception as inst: 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack 
     
     def __twobit(self):
@@ -725,7 +724,7 @@ class Packages():
                     pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         except Exception as inst:
             print inst 
-            print CT.boldRed("failed to update cache for") + name
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack
     
     def __seqserver(self):
