@@ -189,7 +189,15 @@ class CPPLibPackage():
     def getGitRefs(self, url):
         if not self.libType_.startswith("git"):
             raise Exception("Library " + self.name_ + " is not a git library, type is : " + self.libType_)
-        cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+        try:
+            cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+        except Exception as inst: 
+            try:
+                #if the first attempt fail, try doing https instead if that was reason
+                url = url.replace("git@github.com:", "https://github.com/")
+                cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+            except Exception as instFallback:
+                raise instFallback 
         branches = []
         tags = []
         for line in cap.split("\n"):
