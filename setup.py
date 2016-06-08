@@ -1493,9 +1493,19 @@ class Setup:
             pack = self.__package(package)
             rHomeLoc = "bin/R RHOME"
             #&& echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
+            #r.dylib needs rblas
+            #rlapack needs r and rblas
+            #rinside needs r
+            #install_name_tool -change $(otool -L $(realpath .)/lib/R/library/RInside/lib/libRInside.dylib | egrep -o "\s.*libR.dylib") $(realpath .)/lib/R/lib/libR.dylib $(realpath .)/lib/R/library/RInside/lib/libRInside.dylib
             buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                     && make -j {num_cores}
                     && make install
+                    && install_name_tool -id {local_dir}/lib/R/lib/libR.dylib {local_dir}/lib/R/lib/libR.dylib
+                    && install_name_tool -id {local_dir}/lib/R/lib/libRlapack.dylib {local_dir}/lib/R/lib/libRlapack.dylib
+                    && install_name_tool -id {local_dir}/lib/R/lib/libRblas.dylib {local_dir}/lib/R/lib/libRblas.dylib 
+                    && install_name_tool -change $(otool -L {local_dir}/lib/R/lib/libR.dylib | egrep -o "\s.*libRblas.dylib") {local_dir}/lib/R/lib/libRblas.dylib {local_dir}/lib/R/lib/libR.dylib
+                    && install_name_tool -change $(otool -L {local_dir}/lib/R/lib/libRlapack.dylib | egrep -o "\s.*libRblas.dylib") {local_dir}/lib/R/lib/libRblas.dylib {local_dir}/lib/R/lib/libRlapack.dylib
+                    && install_name_tool -change $(otool -L {local_dir}/lib/R/lib/libRlapack.dylib | egrep -o "\s.*libR.dylib") {local_dir}/lib/R/lib/libR.dylib {local_dir}/lib/R/lib/libRlapack.dylib
                     && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
                     repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                     """
