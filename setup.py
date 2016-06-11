@@ -253,6 +253,9 @@ class Packages():
         self.packages_["catch"] = self.__catch()
         self.packages_["mathgl"] = self.__mathgl()
         self.packages_["magic"] = self.__magic()
+        self.packages_["muscle"] = self.__muscle()
+        self.packages_["bowtie2"] = self.__bowtie2()
+        self.packages_["flash"] = self.__flash()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -475,6 +478,28 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-5.600.2.tar.gz", "5.600.2")
         return pack
+    
+    def __muscle(self):
+        name = "muscle"
+        buildCmd = "cd src && CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp muscle {local_dir}/bin/"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.8.31")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/muscle/muscle3.8.31_src.tar.gz", "3.8.31")
+        return pack
+        
+    def __bowtie2(self):
+        name = "bowtie2"
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp -r bowtie2* {local_dir}/bin/"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "2.2.6")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/bowtie2/bowtie2-2.2.6.tar.gz", "2.2.6")
+        return pack
+        
+    def __flash(self):
+        name = "flash"
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/flash/FLASH-1.2.11.tar.gz", "1.2.11")
+        return pack
+
     '''
     def __mlpack(self):
         url = "http://www.mlpack.org/files/mlpack-1.0.8.tar.gz"
@@ -978,6 +1003,8 @@ class Packages():
         else:
             return False
     
+
+    
     def getDefaultIncludeFlags(self):
         return "-I./src/"
     
@@ -1091,9 +1118,12 @@ class Setup:
                        "twobit" : self.twobit,
                        "sharedmutex" : self.sharedMutex,
                        "mathgl": self.mathgl,
-                       "magic": self.magic
+                       "magic": self.magic,
+                       "flash": self.flash,
+                       "bowtie2": self.bowtie2,
+                       "muscle": self.muscle
                        }
-        '''
+        '''flash
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
         '''
@@ -1406,6 +1436,9 @@ class Setup:
         elif "file" == pack.libType_:
             Utils.mkdir(bPaths.build_dir)
             self.__buildFromFile(packVer, cmd)
+        elif "file-executable" == pack.libType_:
+            Utils.mkdir(bPaths.build_dir)
+            self.__buildFromFileExecutable(packVer, cmd)
         else:
             raise Exception("Unrecognized lib type " + str(pack.libType_))
         if Utils.isMac():
@@ -1418,6 +1451,27 @@ class Setup:
             self.__defaultBuild(package, version, False)
         else:
             self.__defaultBuild(package, version, True)
+            
+    def linkInBin(self, package, version, overwrite = False):
+        self.packages_.checkForPackVer(LibNameVer(package, version))
+        masterBinDir = os.path.join(os.path.dirname(self.extDirLoc), "bin" )
+        Utils.mkdir(masterBinDir)
+        masterBinDir = os.path.abspath(masterBinDir)
+        pack = self.packages_.package(package)
+        installDir = pack.getLocalDir(version)
+        if os.path.exists(os.path.join(installDir, "bin")):
+            binFiles = os.listdir(os.path.join(installDir, "bin"))
+            for bFile in binFiles:
+                bFileFull = os.path.join(installDir, "bin", bFile)
+                if os.path.isfile(bFileFull) and os.access(bFileFull, os.X_OK):
+                    if os.path.exists(os.path.join(masterBinDir, bFile)):
+                        if overwrite:
+                            os.remove(os.path.join(masterBinDir, bFile))
+                        else:
+                            raise Exception("File: " + os.path.join(masterBinDir, bFile) + " already exists, use --overWrite to overWrite")
+                    print "Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(os.path.join(masterBinDir, bFile))
+                    os.symlink(bFileFull, os.path.join(masterBinDir, bFile))
+            
         
     def updateBibProjects(self, bibProjects):
         inLibs = bibProjects.split(",")
@@ -1524,6 +1578,7 @@ class Setup:
         
     def twobit(self, version):
         self.__defaultBibBuild("twobit", version)
+        
             
     def sharedMutex(self, version):
         self.__defaultBibBuild("sharedmutex", version)
@@ -1592,6 +1647,15 @@ class Setup:
     def magic(self, version):
         self.__defaultBuild("magic", version)
         
+    def flash(self, version):
+        self.__defaultBuild("flash", version)
+    
+    def bowtie2(self, version):
+        self.__defaultBuild("bowtie2", version)
+    
+    def muscle(self, version):
+        self.__defaultBuild("muscle", version)   
+    
     def downloadFiles(self):
         for set in self.setUpsNeeded:
             topTempDir = os.path.join(self.dirMaster_.base_dir, "temp")
@@ -1691,7 +1755,9 @@ def parse_args():
     parser.add_argument('--noInternet', action = 'store_true')
     parser.add_argument('--justDownload', action = 'store_true')
     parser.add_argument('--verbose', action = 'store_true')
+    parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
     parser.add_argument('--clearCache', action = 'store_true')
+    
     return parser.parse_args()
 
 
@@ -1739,6 +1805,9 @@ def main():
                     for set in s.setUpsNeeded:
                         s.packages_.addPackage(packVers,set)
                     s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
+                if args.symlinkBin:
+                    for set in s.setUpsNeeded:
+                        s.linkInBin(set.name, set.version, args.overWrite)
                 return 0
 
 if __name__ == '__main__':
