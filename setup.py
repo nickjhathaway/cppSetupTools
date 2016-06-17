@@ -257,6 +257,7 @@ class Packages():
         self.packages_["bowtie2"] = self.__bowtie2()
         self.packages_["flash"] = self.__flash()
         self.packages_["lastz"] = self.__lastz()
+        self.packages_["samtools"] = self.__samtools()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -506,6 +507,13 @@ class Packages():
         buildCmd = "sed -i.bak 's/-Werror//g' src/Makefile && CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp src/lastz src/lastz_D {local_dir}/bin/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.03.73")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lastz/lastz-1.03.73.tar.gz", "1.03.73")
+        return pack
+        
+    def __samtools(self):
+        name = "samtools"
+        buildCmd = "CC={CC} CXX={CXX} ./configure --prefix={local_dir} && make -j {num_cores} && make install "
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.3.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/samtools/samtools-1.3.1.tar.bz2", "1.3.1")
         return pack
 
     '''
@@ -1130,7 +1138,8 @@ class Setup:
                        "flash": self.flash,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
-                       "lastz": self.lastz
+                       "lastz": self.lastz,
+                       "samtools": self.samtools
                        }
         '''flash
         "mlpack": self.mlpack,
@@ -1666,7 +1675,10 @@ class Setup:
         self.__defaultBuild("muscle", version) 
     
     def lastz(self, version):
-        self.__defaultBuild("lastz", version)   
+        self.__defaultBuild("lastz", version) 
+    
+    def samtools(self, version):
+        self.__defaultBuild("samtools", version)   
     
     def downloadFiles(self):
         for set in self.setUpsNeeded:
