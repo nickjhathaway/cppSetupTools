@@ -27,7 +27,7 @@ class genHelper:
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
             f.write("CXXFLAGS = -std=c++14\n")
-            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=uninitialized -Werror=return-type\n")
+            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=uninitialized -Werror=return-type -Wno-missing-braces\n")
             if "" != ldFlags:
                 f.write("LD_FLAGS = ")
                 if not ldFlags.startswith("-"):
