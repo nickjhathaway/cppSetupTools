@@ -258,6 +258,7 @@ class Packages():
         self.packages_["flash"] = self.__flash()
         self.packages_["lastz"] = self.__lastz()
         self.packages_["samtools"] = self.__samtools()
+        self.packages_["bcftools"] = self.__bcftools()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -514,6 +515,13 @@ class Packages():
         buildCmd = "CC={CC} CXX={CXX} ./configure --prefix={local_dir} && make -j {num_cores} && make install "
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.3.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/samtools/samtools-1.3.1.tar.bz2", "1.3.1")
+        return pack
+    
+    def __bcftools(self):
+        name = "bcftools"
+        buildCmd = "CC={CC} CXX={CXX} && make prefix={local_dir} -j {num_cores} && make prefix={local_dir} install "
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.3.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/bcftools/bcftools-1.3.1.tar.bz2", "1.3.1")
         return pack
 
     '''
@@ -1139,9 +1147,10 @@ class Setup:
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
                        "lastz": self.lastz,
-                       "samtools": self.samtools
+                       "samtools": self.samtools,
+                       "bcftools": self.bcftools
                        }
-        '''flash
+        '''
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
         '''
@@ -1679,6 +1688,11 @@ class Setup:
     
     def samtools(self, version):
         self.__defaultBuild("samtools", version)   
+
+    def bcftools(self, version):
+        self.__defaultBuild("bcftools", version)   
+    
+    
     
     def downloadFiles(self):
         for set in self.setUpsNeeded:
