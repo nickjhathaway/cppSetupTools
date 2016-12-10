@@ -444,8 +444,15 @@ class Packages():
         pack.versions_["1.4.1"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
         pack.versions_["1.4.1"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
         if not Utils.isMac():
-            pack.versions_["1.4.1"].additionalLdFlags_.append("-lrt") 
-        return pack
+            pack.versions_["1.5.0"].additionalLdFlags_.append("-lrt") 
+        pack.addVersion(url, "1.5.0")
+        pack.versions_["1.5.0"].additionalIncludePaths_.append(pack.versions_["1.5.0"].includePath_ + "/libmongoc-1.0")
+        pack.versions_["1.5.0"].includePath_ = pack.versions_["1.5.0"].includePath_ + "/libbson-1.0"
+        pack.versions_["1.5.0"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        pack.versions_["1.5.0"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
+        if not Utils.isMac():
+            pack.versions_["1.5.0"].additionalLdFlags_.append("-lrt") 
+        return pack#
     
     def __mongocxx(self):
         url = "https://github.com/mongodb/mongo-cxx-driver.git"
@@ -464,6 +471,10 @@ class Packages():
         pack.versions_["r3.0.2"].additionalIncludePaths_.append(pack.versions_["r3.0.2"].includePath_ + "/mongocxx/v_noabi")
         pack.versions_["r3.0.2"].includePath_ = pack.versions_["r3.0.2"].includePath_ + "/bsoncxx/v_noabi"
         pack.versions_["r3.0.2"].additionalLdFlags_ = ["-lbsoncxx"]
+        pack.addVersion(url, "r3.1.0-rc0", [LibNameVer("mongoc", "1.5.0")])
+        pack.versions_["r3.1.0-rc0"].additionalIncludePaths_.append(pack.versions_["r3.1.0-rc0"].includePath_ + "/mongocxx/v_noabi")
+        pack.versions_["r3.1.0-rc0"].includePath_ = pack.versions_["r3.1.0-rc0"].includePath_ + "/bsoncxx/v_noabi"
+        pack.versions_["r3.1.0-rc0"].additionalLdFlags_ = ["-lbsoncxx"]
         return pack
 
     def __cppitertools(self):
@@ -2057,6 +2068,11 @@ class Setup:
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
         Utils.mkdir(self.dirMaster_.cache_dir)
+    
+    def clean(self):
+        Utils.rm_rf(self.dirMaster_.ext_build)
+        Utils.rm_rf(self.dirMaster_.ext_tars)
+    
         
 
 
@@ -2088,6 +2104,7 @@ def parse_args():
     parser.add_argument('--verbose', action = 'store_true')
     parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
     parser.add_argument('--clearCache', action = 'store_true')
+    parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
 
     return parser.parse_args()
 
@@ -2105,6 +2122,10 @@ def runSetup():
         return 0
     if args.updateBibProjects:
         s.updateBibProjects(args.updateBibProjects)
+        return 0
+    
+    if args.clean:
+        s.clean()
         return 0
     if args.printLibs:
         s.printAvailableSetUps()
