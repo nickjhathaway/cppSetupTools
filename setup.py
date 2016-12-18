@@ -69,8 +69,8 @@ class CPPLibPackageVersionR():
         self.setExecutableLoc(localPath)
         ret = "-DSTRICT_R_HEADERS"
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config --cppflags")
-        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
         
     def getLdFlags(self, localPath):
@@ -80,8 +80,8 @@ class CPPLibPackageVersionR():
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
         ret = ret + " " + "-Wl,-rpath," + self.rHome_ + "/lib"
-        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
     
     def getDownloadUrl(self):
@@ -532,7 +532,7 @@ class Packages():
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
-                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
+                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.2")
