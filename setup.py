@@ -270,8 +270,10 @@ class Packages():
             self.packages_["libpca"] = self.__libpca()
         if "eigen" in libsNeeded:
             self.packages_["eigen"] = self.__eigen()
+        if "glpk" in libsNeeded:
+            self.packages_["glpk"] = self.__glpk()
         
-        #git repos
+        #git repos 
         if "bamtools" in libsNeeded:
             self.packages_["bamtools"] = self.__bamtools()
         if "jsoncpp" in libsNeeded:
@@ -589,6 +591,17 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/eigen/eigen-3.3.1.tar.bz2", "3.3.1")
         pack.versions_["3.3.1"].libPath_ = "";
         pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
+        return pack
+
+    def __glpk(self):
+        name = "glpk"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "4.61")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/glpk/glpk-4.61.tar.gz", "4.61")
         return pack
     
     
@@ -1449,9 +1462,10 @@ class Setup:
                        "hts": self.hts,
                        "restbed": self.restbed,
                        "mipwrangler": self.MIPWrangler,
-                       "eigen": self.eigen
+                       "eigen": self.eigen,
+                       "glpk": self.glpk
                        }
-        '''
+        ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
         '''
@@ -2028,7 +2042,10 @@ class Setup:
         self.__defaultBuild("restbed", version)   
         
     def eigen(self, version):
-        self.__defaultBuild("eigen", version)   
+        self.__defaultBuild("eigen", version)  
+        
+    def glpk(self, version):
+        self.__defaultBuild("glpk", version)   
     #
     
     
