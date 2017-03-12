@@ -272,6 +272,8 @@ class Packages():
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
             self.packages_["glpk"] = self.__glpk()
+        if "cmake" in libsNeeded:
+            self.packages_["cmake"] = self.__cmake()
         
         #git repos 
         if "bamtools" in libsNeeded:
@@ -553,7 +555,8 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.600.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.1.tar.gz", "7.800.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.600.1.tar.gz", "7.600.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.500.2.tar.gz", "7.500.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.400.2.tar.gz", "7.400.2")
@@ -567,15 +570,16 @@ class Packages():
     
     def __libpca(self):
         name = "libpca"
+        #the version will get overridden by setting pack.defaultBuildCmd_ latter, but the dependency check needs to install it first
         buildCmd = """CC={CC} CXX={CXX}
-        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.500.2/armadillo/lib -L{external}/local/armadillo/7.500.2/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.500.2/armadillo/include -larmadillo"
+        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.800.1/armadillo/lib -L{external}/local/armadillo/7.800.1/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.800.1/armadillo/include -larmadillo"
           ./configure --prefix {local_dir} && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.500.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.500.2")])
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.800.1")])
         armPack = self.__armadillo()
-        armLdFlags = armPack.versions_["7.500.2"].getLdFlags(self.dirMaster_.install_dir)
-        armIncFlags = armPack.versions_["7.500.2"].getIncludeFlags(self.dirMaster_.install_dir)
+        armLdFlags = armPack.versions_["7.800.1"].getLdFlags(self.dirMaster_.install_dir)
+        armIncFlags = armPack.versions_["7.800.1"].getIncludeFlags(self.dirMaster_.install_dir)
         pack.defaultBuildCmd_ = """CC={CC} CXX={CXX}
         LDFLAGS=" """ + armLdFlags + """ " CXXFLAGS=" """ + armIncFlags + """ "
           ./configure --prefix {local_dir}  && make -j {num_cores} install"""
@@ -602,6 +606,18 @@ class Packages():
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "4.61")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/glpk/glpk-4.61.tar.gz", "4.61")
+        return pack
+
+    def __cmake(self):
+        name = "cmake"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.2")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.5.2.tar.gz", "3.5.2")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.7.2.tar.gz", "3.7.2")
         return pack
     
     
@@ -784,9 +800,11 @@ class Packages():
             && make -j {num_cores} 
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.8")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.8.tar.gz", "1.2.8")
         pack.versions_["1.2.8"].altLibName_ = "z"
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.11.tar.gz", "1.2.11")
+        pack.versions_["1.2.11"].altLibName_ = "z"
         return pack
     
     def __mathgl(self):
@@ -1463,7 +1481,8 @@ class Setup:
                        "restbed": self.restbed,
                        "mipwrangler": self.MIPWrangler,
                        "eigen": self.eigen,
-                       "glpk": self.glpk
+                       "glpk": self.glpk,
+                       "cmake": self.cmake
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -2045,7 +2064,10 @@ class Setup:
         self.__defaultBuild("eigen", version)  
         
     def glpk(self, version):
-        self.__defaultBuild("glpk", version)   
+        self.__defaultBuild("glpk", version) 
+    
+    def cmake(self, version):
+        self.__defaultBuild("cmake", version)   
     #
     
     
