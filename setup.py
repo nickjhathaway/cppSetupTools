@@ -274,6 +274,8 @@ class Packages():
             self.packages_["glpk"] = self.__glpk()
         if "cmake" in libsNeeded:
             self.packages_["cmake"] = self.__cmake()
+        if "curl" in libsNeeded:
+            self.packages_["curl"] = self.__curl()
         
         #git repos 
         if "bamtools" in libsNeeded:
@@ -619,6 +621,17 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.5.2.tar.gz", "3.5.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.7.2.tar.gz", "3.7.2")
+        return pack
+    
+    def __curl(self):
+        name = "curl"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.53.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/curl/curl-7.53.1.tar.gz", "7.53.1")
         return pack
     
     
@@ -1483,7 +1496,8 @@ class Setup:
                        "mipwrangler": self.MIPWrangler,
                        "eigen": self.eigen,
                        "glpk": self.glpk,
-                       "cmake": self.cmake
+                       "cmake": self.cmake,
+                       "curl": self.curl
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -2069,6 +2083,9 @@ class Setup:
     
     def cmake(self, version):
         self.__defaultBuild("cmake", version)   
+        
+    def curl(self, version):
+        self.__defaultBuild("curl", version)   
     #
     
     
@@ -2223,7 +2240,7 @@ class SetupRunner:
                 Utils.run(cmd)
         else:
             if len(s.setUpsNeeded) == 0 and not args.compfile:
-                print ("To see available setup use " + __file__ + " --printLibs")
+                print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
                 #s.printAvailableSetUps()
                 return 0
             elif args.printGitRefs:
