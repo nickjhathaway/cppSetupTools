@@ -19,17 +19,20 @@ class ProjectUpdater():
         self.projectDir = os.path.abspath(projectDir)
         self.setupFrom = os.path.abspath(setupFrom)
     
-    def remakeBibseqProject(self, dir):
+    def remakeBibseqProject(self, subProjectDir):
         makeCmd = ""
         cmd =   """
                 if [ -f .git ]; then git pull; fi
                 && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi
                 && ./configure.py -externalLibDir {EXT_LOC} 
                 && ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --overWrite  
-                && make clean && make -j {NUMCORES} && make -j {NUMCORES} install""".format(EXT_LOC = self.externalLoc, NUMCORES = self.numCores)
+                && make clean && make -j {NUMCORES} 
+                && if [ -d $(make printInstallDir) ]; then rm -rf $(make printInstallDir); fi
+                && mkdir -p $(make printInstallDir)
+                && make -j {NUMCORES} install""".format(EXT_LOC = self.externalLoc, NUMCORES = self.numCores)
         cmd = cmd + makeCmd
         cmd = " ".join(cmd.split())
-        Utils.run_in_dir(cmd, dir)
+        Utils.run_in_dir(cmd, subProjectDir)
     
     def remakeBibseqProjects(self, dirs):
         """
