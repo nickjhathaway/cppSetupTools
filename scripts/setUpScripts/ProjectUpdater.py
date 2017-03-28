@@ -21,7 +21,10 @@ class ProjectUpdater():
     
     def remakeBibseqProject(self, dir):
         makeCmd = ""
-        cmd =   """./configure.py -externalLibDir {EXT_LOC} 
+        cmd =   """
+                if [ -f .git ]; then git pull; fi
+                && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi
+                && ./configure.py -externalLibDir {EXT_LOC} 
                 && ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --overWrite  
                 && make clean && make -j {NUMCORES} && make -j {NUMCORES} install""".format(EXT_LOC = self.externalLoc, NUMCORES = self.numCores)
         cmd = cmd + makeCmd
