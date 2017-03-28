@@ -311,6 +311,8 @@ class Packages():
             self.packages_["twobit"] = self.__twobit()
         if "sharedmutex" in libsNeeded:
             self.packages_["sharedmutex"] = self.__sharedMutex()
+        if "bhtsne" in libsNeeded:
+            self.packages_["bhtsne"] = self.__bhtsne()
         #developer, private repos
         if "elucidator" in libsNeeded:
             self.packages_["elucidator"] = self.__elucidator()
@@ -974,6 +976,29 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack 
+    
+    def __bhtsne(self):
+        url = "git@github.com:umass-bib/bhtsne.git"
+        name = "bhtsne"
+        buildCmd = self.__bibProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack 
       
     def __SeekDeep(self):
         url = "https://github.com/bailey-lab/SeekDeep.git"
@@ -1495,7 +1520,8 @@ class Setup:
                        "eigen": self.eigen,
                        "glpk": self.glpk,
                        "cmake": self.cmake,
-                       "curl": self.curl
+                       "curl": self.curl,
+                       "bhtsne": self.bhtsne
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -1696,7 +1722,7 @@ class Setup:
         else:
             if os.path.exists(bPath.build_sub_dir):
                 print "pulling from {url}".format(url=bPath.url)
-                pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
+                pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi "
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
                 except:
@@ -1704,9 +1730,11 @@ class Setup:
                     sys.exit(1)
             else:
                 print "cloning from {url}".format(url=bPath.url)
-                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(url=bPath.url, d=bPath.build_sub_dir)
+                submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run(cCmd)
+                    Utils.run_in_dir(submoduleCmd, bPath.build_sub_dir)
                 except:
                     print "failed to clone from {url}".format(url=bPath.url)
                     sys.exit(1)
@@ -1725,7 +1753,7 @@ class Setup:
         else:
             if os.path.exists(bPath.build_sub_dir):
                 print "pulling from {url}".format(url=bPath.url)
-                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version
+                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
                 except Exception, e:
@@ -1735,7 +1763,7 @@ class Setup:
             else:
                 print "cloning from {url}".format(url=bPath.url)
                 cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
-                tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
+                tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
                 try:
                     Utils.run(cCmd)
                     Utils.run_in_dir(tagCmd, bPath.build_sub_dir)
@@ -1768,8 +1796,10 @@ class Setup:
         else:
             print "cloning from {url}".format(url=bPath.url)
             cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
+            submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
             try:
                 Utils.run(cCmd)
+                Utils.run_in_dir(submoduleCmd, bPath.build_sub_dir)
             except Exception, e:
                 print e
                 print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
@@ -1791,7 +1821,7 @@ class Setup:
             os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
         else:
             cmd = "git clone {url} {d}".format(url=bPath.url, d=Utils.shellquote(bPath.local_dir))
-            tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
+            tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
             try:
                 Utils.run(cmd)
                 Utils.run_in_dir(tagCmd, bPath.local_dir)
@@ -1985,6 +2015,9 @@ class Setup:
     def elucidator(self, version):
         self.__defaultBibBuild("elucidator", version)
         
+    def bhtsne(self, version):
+        self.__defaultBibBuild("bhtsne", version)   
+         
     def MIPWrangler(self, version):
         self.__defaultBibBuild("mipwrangler", version)
         
