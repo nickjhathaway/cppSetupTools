@@ -539,7 +539,7 @@ class Packages():
         buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                 && make -j {num_cores}
                 && make install
-                && echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                && echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(c(\"tidyverse\", \"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
