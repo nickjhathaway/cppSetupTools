@@ -276,6 +276,8 @@ class Packages():
             self.packages_["curl"] = self.__curl()
         if "lapack" in libsNeeded:
             self.packages_["lapack"] = self.__lapack()
+        if "atlas" in libsNeeded:
+            self.packages_["atlas"] = self.__atlas()
         
         #git repos 
         if "bamtools" in libsNeeded:
@@ -646,6 +648,19 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.53.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/curl/curl-7.53.1.tar.gz", "7.53.1")
         return pack
+    
+    def __atlas(self):
+        name = "atlas"
+        buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX}  ../configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.10.3")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/atlas/atlas3.10.3.tar.gz", "3.10.3")
+        return pack
+    
+    
     
     
     def __muscle(self):
@@ -1535,7 +1550,8 @@ class Setup:
                        "cmake": self.cmake,
                        "curl": self.curl,
                        "bhtsne": self.bhtsne,
-                       "lapack": self.lapack
+                       "lapack": self.lapack,
+                       "atlas": self.atlas
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -2046,6 +2062,10 @@ class Setup:
     
     def lapack(self, version):
         self.__defaultBuild("lapack", version)
+
+    def atlas(self, version):
+        self.__defaultBuild("atlas", version)
+
 
     def mongoc(self, version):
         self.__defaultBuild("mongoc", version)
