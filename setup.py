@@ -274,6 +274,8 @@ class Packages():
             self.packages_["cmake"] = self.__cmake()
         if "curl" in libsNeeded:
             self.packages_["curl"] = self.__curl()
+        if "lapack" in libsNeeded:
+            self.packages_["lapack"] = self.__lapack()
         
         #git repos 
         if "bamtools" in libsNeeded:
@@ -601,6 +603,15 @@ class Packages():
         pack.versions_["3.3.1"].libPath_ = "";
         pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
         return pack
+
+    def __lapack(self):
+        name = "lapack"
+        buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.0")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lapack/lapack-3.7.0.tar.gz", "3.7.0")
+        return pack
+    
 
     def __glpk(self):
         name = "glpk"
@@ -1523,7 +1534,8 @@ class Setup:
                        "glpk": self.glpk,
                        "cmake": self.cmake,
                        "curl": self.curl,
-                       "bhtsne": self.bhtsne
+                       "bhtsne": self.bhtsne,
+                       "lapack": self.lapack
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -2031,7 +2043,10 @@ class Setup:
     
     def jsoncpp(self, version):
         self.__defaultBuild("jsoncpp", version)
-        
+    
+    def lapack(self, version):
+        self.__defaultBuild("lapack", version)
+
     def mongoc(self, version):
         self.__defaultBuild("mongoc", version)
         
