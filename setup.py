@@ -787,7 +787,7 @@ class Packages():
                 pack.addVersion(url, ref)
                 pack.versions_[ref].libPath_ = pack.versions_[ref].libPath_ + "rary"
                 allFloats = re.findall(r"[+-]? *(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", ref)
-                if len(allFloats) > 1 and float(allFloats[0]) >= 4.5:
+                if len(allFloats) >= 1 and float(allFloats[0]) >= 4.5:
                     pack.versions_[ref].cmd_ = """git submodule init && git submodule update &&                                                                                                    mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
