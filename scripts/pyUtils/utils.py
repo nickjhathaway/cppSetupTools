@@ -47,7 +47,7 @@ class Utils:
     @staticmethod
     def hasProgram(program):
         whichOutput = Utils.which(program);
-        return None == whichOutput;
+        return None != whichOutput;
     
     @staticmethod
     def run_in_dir(cmd, d):
