@@ -651,7 +651,19 @@ class Packages():
     
     def __curl(self):
         name = "curl"
-        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+        extraFlags = ""
+        #curl library doesn't link to the openssl library at run time as it finds at configure so need to add the following to 
+        #make the openssl library directory found to be set as run time path
+        if Utils.hasProgram("pkg-config"):
+            pkgconfgOutput = Utils.runAndCapture("pkg-config --libs openssl")
+            if "-L" in pkgconfgOutput:
+                pkgconfgOutput_splits = pkgconfgOutput.split()
+                extraFlags = "LDFLAGS=" + "\""
+                for pkgconfgOutput_split in pkgconfgOutput_splits:
+                    if pkgconfgOutput_split.startswith("-L"):
+                        extraFlags = extraFlags + " -Wl,-rpath," + pkgconfgOutput_split[2:]
+                extraFlags = extraFlags + " $LDFLAGS\""
+        buildCmd = """CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
             --prefix={local_dir}
             && make -j {num_cores} 
             && make -j {num_cores} install"""
