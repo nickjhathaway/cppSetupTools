@@ -2243,20 +2243,20 @@ class Setup:
         gitWhich = Utils.which("git")
         if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
-                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC[0])
+                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
                 if self.args.compfile:
                     print "Change CC in " + self.args.compfile[0]
                 else:
                     print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
                 print ""
             if not cxxWhich:
-                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX[0])
+                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX)
                 if self.args.compfile:
                     print "Change CXX in " + self.args.compfile[0]
                 else:
                     print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
                 print ""
-            if not cmakeWhich:
+            if not cmakeWhich and "cmake" not in self.packages_:
                 print CT.boldRed("Could not find " + CT.purple + "cmake")
                 if Utils.isMac():
                     print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
