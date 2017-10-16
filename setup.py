@@ -389,20 +389,26 @@ class Packages():
     def __bamtools(self):
         url = 'https://github.com/nickjhathaway/bamtools.git'
         name = "bamtools"
-        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
+        buildCmd = "mkdir -p build && cd build && ZLIBADDFLAGS CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.5.0")
+        defaultZlibVersion = "1.2.11";
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
-                    pack = pickle.load(inputPkl)
-                    pack.defaultBuildCmd_ = buildCmd
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
+                pack.addVersion(url, ref, [LibNameVer("zlib", defaultZlibVersion)])
+                zlibPack = self.__zlib()
+                zlibLdFlags = zlibPack.versions_[defaultZlibVersion].getLdFlags(self.dirMaster_.install_dir)
+                zlibIncFlags = zlibPack.versions_[defaultZlibVersion].getIncludeFlags(self.dirMaster_.install_dir)
+                zlibAddFlags = "LDFLAGS=\""+ zlibLdFlags + "\" CXXFLAGS=\""+ zlibIncFlags + "\""
+                pack.versions_[ref].cmd_ = buildCmd.replace("ZLIBADDFLAGS", zlibAddFlags)
                 pack.versions_[ref].libPath_ = os.path.join(pack.versions_[ref].libPath_,name)
                 pack.versions_[ref].includePath_ = os.path.join(pack.versions_[ref].includePath_,name)
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
@@ -414,7 +420,7 @@ class Packages():
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.7.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.8.3")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
