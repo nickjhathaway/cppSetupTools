@@ -2319,6 +2319,9 @@ class SetupRunner:
     def runSetup():
         args = SetupRunner.parse_args()
         s = Setup(args)
+        if args.printLibs:
+            s.printAvailableSetUps()
+            return 0
         s.externalChecks()
         if(args.instRPackageName):
             s.setupPackages("r")
@@ -2335,10 +2338,7 @@ class SetupRunner:
         if args.clean:
             s.clean()
             return 0
-        if args.printLibs:
-            s.printAvailableSetUps()
-            return 0
-        elif args.addBashCompletion:
+        if args.addBashCompletion:
             if(os.path.isdir("./bashCompletes")):
                 cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
                 Utils.run(cmd)
