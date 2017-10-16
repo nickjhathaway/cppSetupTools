@@ -2,6 +2,7 @@
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
+from Carbon.Aliases import false
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
@@ -2241,6 +2242,7 @@ class Setup:
         cxxWhich = Utils.which(self.CXX)
         cmakeWhich = Utils.which("cmake")
         gitWhich = Utils.which("git")
+        failure = False;
         if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
                 print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
@@ -2249,6 +2251,7 @@ class Setup:
                 else:
                     print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
                 print ""
+                failure = True
             if not cxxWhich:
                 print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX)
                 if self.args.compfile:
@@ -2256,20 +2259,26 @@ class Setup:
                 else:
                     print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
                 print ""
+                failure = True
             if not cmakeWhich and "cmake" not in self.packages_.packages_:
+                failure = True
                 print CT.boldRed("Could not find " + CT.purple + "cmake")
                 if Utils.isMac():
                     print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+                    
                 else:
                     print "On ubuntu to install latest cmake do the following"
                     print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
                     print "sudo apt-get update"
                     print "sudo apt-get install cmake"
                     print "or if you have linuxbrew, brew install cmake"
-                    
             if not gitWhich:
-                print "Can't find git"
-            raise Exception("")
+                failure = True
+                print ("Can't find commandline tool git")
+            if failure:
+                raise Exception()
+            
+            
         
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
