@@ -2,7 +2,6 @@
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
-from Carbon.Aliases import false
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
