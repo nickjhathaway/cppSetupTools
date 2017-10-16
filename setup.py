@@ -2256,7 +2256,7 @@ class Setup:
                 else:
                     print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
                 print ""
-            if not cmakeWhich and "cmake" not in self.packages_.keys():
+            if not cmakeWhich and "cmake" not in self.packages_.packages_:
                 print CT.boldRed("Could not find " + CT.purple + "cmake")
                 if Utils.isMac():
                     print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
