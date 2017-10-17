@@ -236,8 +236,6 @@ class Packages():
             self.packages_["r"] = self.__r()
         if "cppcms" in libsNeeded:
             self.packages_["cppcms"] = self.__cppcms()
-        if "armadillo" in libsNeeded:
-            self.packages_["armadillo"] = self.__armadillo()
         if "dlib" in libsNeeded:
             self.packages_["dlib"] = self.__dlib()
         if "libsvm" in libsNeeded:
@@ -250,8 +248,7 @@ class Packages():
             self.packages_["mathgl"] = self.__mathgl()
         if "magic" in libsNeeded:
             self.packages_["magic"] = self.__magic()
-        if "muscle" in libsNeeded:
-            self.packages_["muscle"] = self.__muscle()
+        
         if "bowtie2" in libsNeeded:
             self.packages_["bowtie2"] = self.__bowtie2()
         if "flash" in libsNeeded:
@@ -278,6 +275,10 @@ class Packages():
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "muscle" in libsNeeded:
+            self.packages_["muscle"] = self.__muscle()
+        if "armadillo" in libsNeeded:
+            self.packages_["armadillo"] = self.__armadillo()
         if "cmake" in libsNeeded:
             self.packages_["cmake"] = self.__cmake()
         if "boost_filesystem" in libsNeeded:
@@ -579,19 +580,23 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.900.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.900.1.tar.gz", "7.900.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.2.tar.gz", "7.800.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.1.tar.gz", "7.800.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.600.1.tar.gz", "7.600.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.500.2.tar.gz", "7.500.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.400.2.tar.gz", "7.400.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.300.1.tar.gz", "7.300.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.100.3.tar.gz", "7.100.3")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.700.3.tar.gz", "6.700.3")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz", "6.200.3")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-5.600.2.tar.gz", "5.600.2")
+        url = "https://github.com/nickjhathaway/armadillo.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "8.200.0")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __libpca(self):
@@ -651,7 +656,7 @@ class Packages():
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         url = "https://github.com/nickjhathaway/cmake.git"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.9.4")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.7.2")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -667,12 +672,6 @@ class Packages():
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
-        return pack
-        
-        
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.5.2.tar.gz", "3.5.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.7.2.tar.gz", "3.7.2")
         return pack
     
     def __curl(self):
@@ -709,14 +708,26 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/atlas/atlas3.10.3.tar.gz", "3.10.3")
         return pack
     
-    
-    
-    
     def __muscle(self):
         name = "muscle"
-        buildCmd = "cd src && CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp muscle {local_dir}/bin/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.8.31")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/muscle/muscle3.8.31_src.tar.gz", "3.8.31")
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp muscle {local_dir}/bin/"
+        url = "https://github.com/nickjhathaway/muscle.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.8.31")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
         
     def __bowtie2(self):
