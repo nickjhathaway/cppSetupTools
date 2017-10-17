@@ -232,8 +232,6 @@ class Packages():
     def setUpPackagesNeeded(self, libsNeeded):
         if "boost" in libsNeeded:
             self.packages_["boost"] = self.__boost()
-        if "boost_filesystem" in libsNeeded:
-            self.packages_["boost_filesystem"] = self.__boost_filesystem()
         if "r" in libsNeeded:
             self.packages_["r"] = self.__r()
         if "cppcms" in libsNeeded:
@@ -252,8 +250,6 @@ class Packages():
             self.packages_["mathgl"] = self.__mathgl()
         if "magic" in libsNeeded:
             self.packages_["magic"] = self.__magic()
-        if "zlib" in libsNeeded:
-            self.packages_["zlib"] = self.__zlib()
         if "muscle" in libsNeeded:
             self.packages_["muscle"] = self.__muscle()
         if "bowtie2" in libsNeeded:
@@ -274,8 +270,6 @@ class Packages():
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
             self.packages_["glpk"] = self.__glpk()
-        if "cmake" in libsNeeded:
-            self.packages_["cmake"] = self.__cmake()
         if "curl" in libsNeeded:
             self.packages_["curl"] = self.__curl()
         if "lapack" in libsNeeded:
@@ -284,6 +278,12 @@ class Packages():
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "cmake" in libsNeeded:
+            self.packages_["cmake"] = self.__cmake()
+        if "boost_filesystem" in libsNeeded:
+            self.packages_["boost_filesystem"] = self.__boost_filesystem()
+        if "zlib" in libsNeeded:
+            self.packages_["zlib"] = self.__zlib()
         if "bamtools" in libsNeeded:
             self.packages_["bamtools"] = self.__bamtools()
         if "jsoncpp" in libsNeeded:
@@ -427,8 +427,8 @@ class Packages():
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
-                    pack = pickle.load(inputPkl)
-                    pack.defaultBuildCmd_ = buildCmd
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -650,6 +650,26 @@ class Packages():
             && make -j {num_cores} 
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
+        url = "https://github.com/nickjhathaway/cmake.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "3.9.4")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+        
+        
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.5.2.tar.gz", "3.5.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.7.2.tar.gz", "3.7.2")
@@ -873,19 +893,32 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "5.25")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
         return pack
-    
+        
     def __zlib(self):
+        url = 'https://github.com/nickjhathaway/zlib.git'
         name = "zlib"
         buildCmd = """CC={CC} CXX={CXX}  ./configure 
-            --prefix={local_dir}
-            && make -j {num_cores} 
-            && make -j {num_cores} install"""
+           --prefix={local_dir}
+           && make -j {num_cores} 
+           && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.8.tar.gz", "1.2.8")
-        pack.versions_["1.2.8"].altLibName_ = "z"
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.11.tar.gz", "1.2.11")
-        pack.versions_["1.2.11"].altLibName_ = "z"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].altLibName_ = "z"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __mathgl(self):
@@ -1321,10 +1354,25 @@ class Packages():
                      && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost_filesystem/boost_filesystem_1_60_0.tar.gz", "1_60_0")
-        pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
-        pack.versions_["1_60_0"].libName_ = ""
+        url = "https://github.com/nickjhathaway/boost_filesystem.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1_60_0")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+                pack.versions_[ref].libName_ = ""
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def getPackagesNames(self):
