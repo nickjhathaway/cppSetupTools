@@ -739,9 +739,25 @@ class Packages():
     def __flash(self):
         name = "flash"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/flash/FLASH-1.2.11.tar.gz", "1.2.11")
+        url = "https://github.com/nickjhathaway/muscle.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
+
     
     def __pigz(self):
         name = "pigz"
