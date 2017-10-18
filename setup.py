@@ -2410,6 +2410,17 @@ class SetupRunner:
         if args.printLibs:
             s.printAvailableSetUps()
             return 0
+        if args.addBashCompletion:
+            if(os.path.isdir("./bashCompletes")):
+                cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./etc/bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            return 0
         s.externalChecks()
         if(args.instRPackageName):
             s.setupPackages("r")
@@ -2426,38 +2437,27 @@ class SetupRunner:
         if args.clean:
             s.clean()
             return 0
-        if args.addBashCompletion:
-            if(os.path.isdir("./bashCompletes")):
-                cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
-                Utils.run(cmd)
-            if(os.path.isdir("./bash_completion.d")):
-                cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
-                Utils.run(cmd)
-            if(os.path.isdir("./etc/bash_completion.d")):
-                cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
-                Utils.run(cmd)
+        if len(s.setUpsNeeded) == 0 and not args.compfile:
+            print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
+            #s.printAvailableSetUps()
+            return 0
+        elif args.printGitRefs:
+            s.printGitRefs()
+            return 0
         else:
-            if len(s.setUpsNeeded) == 0 and not args.compfile:
-                print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
-                #s.printAvailableSetUps()
-                return 0
-            elif args.printGitRefs:
-                s.printGitRefs()
-                return 0
+            if args.justDownload:
+                s.downloadFiles()
             else:
-                if args.justDownload:
-                    s.downloadFiles()
-                else:
-                    s.setup()
-                    if args.outMakefile:
-                        packVers = []
-                        for setUpNeeded in s.setUpsNeeded:
-                            s.packages_.addPackage(packVers,setUpNeeded)
-                        s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
-                    if args.symlinkBin:
-                        for setUpNeeded in s.setUpsNeeded:
-                            s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
-                    return 0
+                s.setup()
+                if args.outMakefile:
+                    packVers = []
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.packages_.addPackage(packVers,setUpNeeded)
+                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
+                if args.symlinkBin:
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+                return 0
 
 if __name__ == '__main__':
     SetupRunner.runSetup()
