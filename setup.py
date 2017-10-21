@@ -578,7 +578,7 @@ class Packages():
 
     def __armadillo(self):
         name = "armadillo"
-        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=\"-std=c++11\" -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
+        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DDETECT_HDF5=false -DCMAKE_CXX_FLAGS=\"-std=c++11\" -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         url = "https://github.com/nickjhathaway/armadillo.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "8.200.0")
         if self.args.noInternet:
