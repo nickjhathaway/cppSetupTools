@@ -258,14 +258,14 @@ class Packages():
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
             self.packages_["glpk"] = self.__glpk()
-        if "curl" in libsNeeded:
-            self.packages_["curl"] = self.__curl()
         if "lapack" in libsNeeded:
             self.packages_["lapack"] = self.__lapack()
         if "atlas" in libsNeeded:
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "curl" in libsNeeded:
+            self.packages_["curl"] = self.__curl()
         if "mongoc" in libsNeeded:
             self.packages_["mongoc"] = self.__mongoc()
         if "mongocxx" in libsNeeded:
