@@ -2072,7 +2072,8 @@ class Setup:
             libPath = os.path.join(bPaths.local_dir, "lib")
             if(os.path.exists(libPath)):
                 Utils.fixDyLibOnMac(libPath)
-        
+        Utils.ensureLibDirectoryPresent(bPaths.local_dir)
+            
     def __defaultBibBuild(self, package, version):
         if "develop" == version or "release" in version or "master" == version:
             self.__defaultBuild(package, version, False)
