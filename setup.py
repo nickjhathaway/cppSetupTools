@@ -7,7 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
-import pickle, datetime, re
+import pickle, datetime, re, math
 
 #tuples
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
@@ -1887,12 +1887,12 @@ class Setup:
                 retCores = self.args.numCores
         else:
             if retCores > 8:
-                retCores  = retCores/2
+                retCores  = math.floor(retCores/2)
             if 1 != retCores:
                 retCores -= 1
             if retCores < 1:
                 retCores = 1 
-        return retCores
+        return int(retCores)
 
     def __buildFromFile(self, packVer, cmd):
         bPath = packVer.bPaths_
