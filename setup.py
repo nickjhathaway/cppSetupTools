@@ -306,6 +306,8 @@ class Packages():
             self.packages_["restbed"] = self.__restbed()
         if "zlib-ng" in libsNeeded:
             self.packages_["zlib-ng"] = self.__zlibng()
+        if "openblas" in libsNeeded:
+            self.packages_["openblas"] = self.__openblas()
         #bib setup
         if "bibseq" in libsNeeded:
             self.packages_["bibseq"] = self.__bibseq()
@@ -874,6 +876,30 @@ class Packages():
         name = "zlib-ng"
         url = "https://github.com/Dead2/zlib-ng"
         buildCmd = "CC={CC} CXX={CXX} && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
+
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].altLibName_ = "z"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+
+    def __openblas(self):
+        name = "openblas"
+        url = "https://github.com/xianyi/OpenBLAS.git"
+        buildCmd = "CC={CC} CXX={CXX} && make PREFIX={local_dir} -j {num_cores} && make install PREFIX={local_dir} -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
 
         if self.args.noInternet:
@@ -1707,6 +1733,7 @@ class Setup:
                        "magic": self.magic,
                        "zlib": self.zlib,
                        "zlib-ng": self.zlibng,
+                       "openblas": self.openblas,
                        "flash": self.flash,
                        "pigz": self.pigz,
                        "bowtie2": self.bowtie2,
@@ -2302,6 +2329,9 @@ class Setup:
     
     def zlibng(self, version):
         self.__defaultBuild("zlib-ng", version)
+
+    def openblas(self, version):
+        self.__defaultBuild("openblas", version)
         
     def flash(self, version):
         self.__defaultBuild("flash", version)
