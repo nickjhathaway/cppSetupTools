@@ -2162,7 +2162,7 @@ class Setup:
         else:
             if os.path.exists(bPath.build_sub_dir):
                 print("pulling from {url}".format(url=bPath.url))
-                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
+                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version.replace("__", "/") + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
                 except Exception as e:
@@ -2171,7 +2171,7 @@ class Setup:
                     sys.exit(1)
             else:
                 cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
-                tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
+                tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version.replace("__", "/"))
                 try:
                     Utils.run(cCmd)
                     Utils.run_in_dir(tagCmd, bPath.build_sub_dir)
