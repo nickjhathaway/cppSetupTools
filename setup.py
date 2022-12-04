@@ -1584,22 +1584,22 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
                      """
         buildCmd = " ".join(buildCmd.split())
         url = "https://github.com/nickjhathaway/boost_filesystem.git"
