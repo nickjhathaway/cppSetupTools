@@ -1567,6 +1567,8 @@ class Packages():
             && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
+            && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_atomic.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_atomic.dylib") {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi
+            && if [ -f {local_dir}/lib/libboost_atomic.dylib ]; then install_name_tool -id {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_atomic.dylib; fi
             """
             #print(installNameToolCmd)
         if self.args.clang:
