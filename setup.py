@@ -2,6 +2,8 @@
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
+
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
@@ -1523,7 +1525,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1534,7 +1536,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1596,6 +1598,9 @@ class Packages():
             && if [ -f {local_dir}/lib/libboost_atomic.dylib ]; then install_name_tool -id {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_atomic.dylib; fi
             """
             #print(installNameToolCmd)
+        # print("Utils.isMac()")
+        # print(Utils.isMac())
+        # sys.exit(1)
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1609,7 +1614,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1620,7 +1625,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1681,18 +1686,18 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-headerpad_max_install_names\" --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
